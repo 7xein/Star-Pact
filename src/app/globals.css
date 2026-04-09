@@ -1,0 +1,290 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Custom Properties ─────────────────────────────── */
+:root {
+  --bg-base: #0a0a1a;
+  --cyan: #00f5ff;
+  --cyan-dim: rgba(0, 245, 255, 0.2);
+  --cyan-glow: 0 0 10px #00f5ff, 0 0 20px rgba(0,245,255,0.4);
+  --red-raid: #ff3b3b;
+  --red-glow: 0 0 10px #ff3b3b, 0 0 20px rgba(255,59,59,0.4);
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(0, 245, 255, 0.2);
+  --divider: rgba(0, 245, 255, 0.15);
+  --font-display: 'Orbitron', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* ── Base ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  background-color: var(--bg-base);
+  color: #e2e8f0;
+  font-family: var(--font-body);
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* ── Star Field ─────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.9) 0%, transparent 100%),
+    radial-gradient(1px 1px at 23% 42%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 38% 8%,  rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 52% 67%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 61% 28%, rgba(255,255,255,0.9) 0%, transparent 100%),
+    radial-gradient(1px 1px at 74% 51%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 83% 19%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 91% 73%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 6%  88%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 17% 61%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 29% 93%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 37%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px at 56% 82%, rgba(255,255,255,0.9) 0%, transparent 100%),
+    radial-gradient(1px 1px at 68% 11%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px at 79% 44%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 95%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 3%  55%, rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 33% 25%, rgba(255,255,255,0.9) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 47% 77%, rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 72% 62%, rgba(255,255,255,0.8) 0%, transparent 100%),
+    radial-gradient(1px 1px at 14% 33%, rgba(200,220,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 42% 58%, rgba(200,220,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 65% 87%, rgba(200,220,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 95% 40%, rgba(200,220,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 8%  71%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 26% 5%,  rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 58% 48%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 85% 79%, rgba(255,255,255,0.4) 0%, transparent 100%);
+  background-size: 100% 100%;
+}
+
+/* All direct page content sits above stars */
+body > * { position: relative; z-index: 1; }
+#__next, main { position: relative; z-index: 1; }
+
+/* ── Typography ─────────────────────────────────────────── */
+.font-display { font-family: var(--font-display); }
+.font-body    { font-family: var(--font-body); }
+
+/* ── Glow Utilities ─────────────────────────────────────── */
+.glow-cyan  { text-shadow: var(--cyan-glow); color: var(--cyan); }
+.glow-red   { text-shadow: var(--red-glow);  color: var(--red-raid); }
+.box-glow-cyan { box-shadow: var(--cyan-glow); }
+.box-glow-red  { box-shadow: var(--red-glow); }
+
+/* ── Cards ──────────────────────────────────────────────── */
+.sp-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Buttons ────────────────────────────────────────────── */
+.btn-cyan {
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+.btn-cyan:hover {
+  background: var(--cyan);
+  color: #0a0a1a;
+  box-shadow: var(--cyan-glow);
+}
+.btn-cyan:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-red {
+  background: transparent;
+  border: 1px solid var(--red-raid);
+  color: var(--red-raid);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+.btn-red:hover {
+  background: var(--red-raid);
+  color: #0a0a1a;
+  box-shadow: var(--red-glow);
+}
+.btn-red:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.6);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover {
+  border-color: rgba(255,255,255,0.5);
+  color: white;
+}
+
+/* ── Phase Badge ────────────────────────────────────────── */
+.phase-badge {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.phase-trading    { background: rgba(0,245,255,0.15); color: var(--cyan); border: 1px solid var(--cyan-dim); }
+.phase-promise    { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+.phase-raid       { background: rgba(255,59,59,0.15); color: var(--red-raid); border: 1px solid rgba(255,59,59,0.3); }
+.phase-yearend    { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+.phase-debrief    { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 8px var(--cyan), 0 0 16px rgba(0,245,255,0.3); }
+  50%       { text-shadow: 0 0 16px var(--cyan), 0 0 32px rgba(0,245,255,0.6), 0 0 48px rgba(0,245,255,0.2); }
+}
+@keyframes pulse-glow-red {
+  0%, 100% { text-shadow: 0 0 8px var(--red-raid), 0 0 16px rgba(255,59,59,0.3); }
+  50%       { text-shadow: 0 0 20px var(--red-raid), 0 0 40px rgba(255,59,59,0.6); }
+}
+@keyframes border-pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,59,59,0); }
+  50%       { box-shadow: 0 0 0 4px rgba(255,59,59,0.4), inset 0 0 30px rgba(255,59,59,0.05); }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes flash-green {
+  0%   { background: rgba(34,197,94,0.35); }
+  100% { background: transparent; }
+}
+@keyframes flash-red-bg {
+  0%   { background: rgba(255,59,59,0.35); }
+  100% { background: transparent; }
+}
+@keyframes typewriter-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes raid-border {
+  0%, 100% { outline: 3px solid transparent; }
+  25%, 75%  { outline: 3px solid var(--red-raid); box-shadow: 0 0 30px rgba(255,59,59,0.3); }
+}
+
+.anim-pulse-phase { animation: pulse-glow 2.5s ease-in-out infinite; }
+.anim-pulse-red   { animation: pulse-glow-red 1s ease-in-out infinite; }
+.anim-fade-in     { animation: fade-in-up 0.3s ease-out forwards; }
+.anim-slide-down  { animation: slide-down 0.3s ease-out forwards; }
+.anim-spin        { animation: spin-slow 2s linear infinite; }
+.anim-flash-green { animation: flash-green 0.8s ease-out forwards; }
+.anim-flash-red   { animation: flash-red-bg 0.8s ease-out forwards; }
+.anim-typewriter  { animation: typewriter-fade 0.4s ease-in forwards; }
+.anim-raid-border { animation: raid-border 0.6s ease-in-out 3; }
+
+/* ── Resource Change Flash ──────────────────────────────── */
+.resource-card { transition: background 0.3s; }
+
+/* ── Trade Feed ─────────────────────────────────────────── */
+.trade-feed-entry { animation: fade-in-up 0.4s ease-out forwards; }
+
+/* ── Progress Bars ──────────────────────────────────────── */
+.progress-track {
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+/* ── Modal ──────────────────────────────────────────────── */
+.sp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.sp-modal {
+  background: #0d0d24;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 0 40px rgba(0,245,255,0.1);
+}
+.sp-modal-red {
+  background: #160a0a;
+  border: 1px solid rgba(255,59,59,0.4);
+  box-shadow: 0 0 40px rgba(255,59,59,0.15);
+}
+
+/* ── Input / Select ─────────────────────────────────────── */
+.sp-input {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.sp-input:focus { border-color: var(--cyan); }
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
+
+/* ── Accessibility ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

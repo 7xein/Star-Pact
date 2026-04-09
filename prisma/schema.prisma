@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  year      Int      @default(1)
+  phase     String   @default("TRADING")
+  timerEnd  DateTime?
+  timerRunning Boolean @default(false)
+  countries Country[]
+  trades    Trade[]
+  scandals  Scandal[]
+  debriefResponses DebriefResponse[]
+}
+
+model Country {
+  id          String  @id @default(cuid())
+  sessionId   String
+  session     Session @relation(fields: [sessionId], references: [id])
+  name        String
+  color       String
+  motto       String
+  story       String
+  famousFor   String
+  food        Int
+  wealth      Int
+  environment Int
+  kushBalls   Int
+  relationsData String
+  promisesData  String
+  tradesAsSender   Trade[] @relation("TradeSender")
+  tradesAsReceiver Trade[] @relation("TradeReceiver")
+  attackingScandals Scandal[] @relation("ScandalAttacker")
+  defendingScandals Scandal[] @relation("ScandalDefender")
+  scandalAlliances  ScandalAlliance[]
+  debriefResponses  DebriefResponse[]
+  promiseChecks     PromiseCheck[]
+}
+
+model Trade {
+  id             String   @id @default(cuid())
+  sessionId      String
+  session        Session  @relation(fields: [sessionId], references: [id])
+  senderId       String
+  sender         Country  @relation("TradeSender", fields: [senderId], references: [id])
+  receiverId     String
+  receiver       Country  @relation("TradeReceiver", fields: [receiverId], references: [id])
+  offerResource  String
+  offerAmount    Int
+  requestResource String
+  requestAmount  Int
+  status         String   @default("PENDING")
+  year           Int
+  phase          String
+  createdAt      DateTime @default(now())
+}
+
+model Scandal {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         Session  @relation(fields: [sessionId], references: [id])
+  attackerId      String
+  attacker        Country  @relation("ScandalAttacker", fields: [attackerId], references: [id])
+  defenderId      String
+  defender        Country  @relation("ScandalDefender", fields: [defenderId], references: [id])
+  resource        String
+  amount          Int
+  status          String   @default("OPEN")
+  outcome         String?
+  windowEndsAt    DateTime
+  year            Int
+  alliances       ScandalAlliance[]
+  createdAt       DateTime @default(now())
+}
+
+model ScandalAlliance {
+  id         String  @id @default(cuid())
+  scandalId  String
+  scandal    Scandal @relation(fields: [scandalId], references: [id])
+  countryId  String
+  country    Country @relation(fields: [countryId], references: [id])
+  side       String
+}
+
+model PromiseCheck {
+  id        String  @id @default(cuid())
+  sessionId String
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id])
+  year      Int
+  resource  String
+  required  Int
+  actual    Int
+  passed    Boolean
+}
+
+model DebriefResponse {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id])
+  q1        String
+  q2        String
+  q3        String
+  q4        String
+  q5        String
+  createdAt DateTime @default(now())
+}
