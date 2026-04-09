@@ -137,7 +137,7 @@ export default function JoinPage() {
               onClick={() => join(c)}
               className="sp-card text-left p-3 transition-all duration-200 hover:scale-105 active:scale-95 anim-fade-in"
               style={{
-                background: `rgba(255,255,255,0.02)`,
+                background: `${c.color}08`,
                 border: `1px solid ${c.color}4d`,
                 animationDelay: `${i * 0.04}s`,
                 animationFillMode: 'both',
