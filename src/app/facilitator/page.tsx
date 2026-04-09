@@ -38,7 +38,7 @@ export default function FacilitatorLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="sp-card w-full max-w-md p-8">
+      <div className="sp-card w-full p-8" style={{ maxWidth: '28rem' }}>
         {/* Logo */}
         <div className="text-center mb-8">
           <div style={{

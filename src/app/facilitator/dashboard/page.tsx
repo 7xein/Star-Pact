@@ -373,7 +373,7 @@ export default function FacilitatorDashboard() {
       {(raidResolving || raidOverlay) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}
           onClick={() => { setRaidOverlay(null); setRaidResolving(null); }}>
-          <div className="sp-card sp-modal-red text-center p-8 max-w-lg w-full mx-4">
+          <div className="sp-card sp-modal-red text-center p-8 w-full mx-4" style={{ maxWidth: '32rem' }}>
             {raidResolving && !raidOverlay ? (
               <>
                 <p className="font-display text-xs tracking-widest text-slate-400 mb-6">NAVIGATION COMPUTER CALCULATING...</p>
