@@ -88,10 +88,10 @@ const PHASE_LABELS: Record<string, string> = {
   DEBRIEF: '📡 DEBRIEF',
 }
 const RES_LABELS: Record<string, string> = {
-  food: 'Energy', wealth: 'Population', environment: 'Oxygen', kushBalls: 'Smugglers'
+  food: 'Energy', wealth: 'Population', environment: 'Oxygen', kushBalls: 'Rockets'
 }
 const RES_ICONS: Record<string, string> = {
-  food: '⚡', wealth: '👥', environment: '🌿', kushBalls: '🕵️'
+  food: '⚡', wealth: '👥', environment: '💨', kushBalls: '🚀'
 }
 
 function resolveColor(c: string) { return c }
@@ -107,6 +107,80 @@ function getPromiseDots(country: Country, checks: PromiseCheck[]) {
     if (diff <= 2) return 'amber'
     return 'dim'
   })
+}
+
+function PlanetSphereDetails({ name }: { name: string }) {
+  switch (name) {
+    case 'Antica':
+      return <>
+        <div style={{ position:'absolute', top:'28%', left:'22%', width:6, height:6, borderRadius:'50%', background:'rgba(0,0,0,0.4)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'55%', width:5, height:5, borderRadius:'50%', background:'rgba(0,0,0,0.35)' }} />
+        <div style={{ position:'absolute', top:'40%', left:0, right:0, height:5, background:'linear-gradient(90deg,transparent,rgba(255,160,50,0.45),transparent)' }} />
+      </>
+    case 'Portswana':
+      return <>
+        <div style={{ position:'absolute', top:'30%', left:'40%', width:7, height:7, borderRadius:'50%', background:'rgba(160,80,0,0.4)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'20%', width:5, height:5, borderRadius:'50%', background:'rgba(160,80,0,0.3)' }} />
+      </>
+    case 'Samosia':
+      return <>
+        <div style={{ position:'absolute', top:'20%', left:'30%', width:13, height:9, borderRadius:'40%', background:'rgba(0,100,30,0.55)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'15%', width:10, height:8, borderRadius:'40%', background:'rgba(0,100,30,0.45)' }} />
+      </>
+    case 'Bintu':
+      return <>
+        <div style={{ position:'absolute', top:'15%', left:'50%', width:1, height:22, background:'rgba(255,255,255,0.25)', transform:'rotate(30deg)' }} />
+        <div style={{ position:'absolute', top:'15%', left:'60%', width:1, height:18, background:'rgba(255,255,255,0.18)', transform:'rotate(-20deg)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'25%', width:1, height:16, background:'rgba(255,255,255,0.2)', transform:'rotate(45deg)' }} />
+      </>
+    case 'Mertante':
+      return <>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:10, background:'linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0.08))', borderRadius:'50% 50% 0 0' }} />
+        <div style={{ position:'absolute', top:'35%', left:0, right:0, height:4, background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)' }} />
+      </>
+    case 'Rostotto':
+      return <>
+        <div style={{ position:'absolute', top:0, left:'40%', width:5, height:'100%', background:'linear-gradient(90deg,transparent,rgba(0,0,0,0.5),transparent)', transform:'rotate(20deg)' }} />
+        <div style={{ position:'absolute', top:0, left:'42%', width:2, height:'100%', background:'linear-gradient(180deg,transparent,rgba(224,64,251,0.6),transparent)', transform:'rotate(20deg)' }} />
+      </>
+    case 'Jasna':
+      return <>
+        <div style={{ position:'absolute', top:'30%', left:0, right:0, height:4, background:'rgba(120,50,0,0.4)' }} />
+        <div style={{ position:'absolute', top:'55%', left:0, right:0, height:3, background:'rgba(120,50,0,0.3)' }} />
+      </>
+    case 'Geldar':
+      return <>
+        <div style={{ position:'absolute', top:'20%', left:'10%', width:16, height:16, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.25)' }} />
+        <div style={{ position:'absolute', top:'35%', left:0, right:0, height:5, background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)' }} />
+      </>
+    case 'Halportia':
+      return <div style={{ position:'absolute', inset:0, backgroundImage:'repeating-linear-gradient(0deg,transparent,transparent 9px,rgba(255,255,255,0.07) 9px,rgba(255,255,255,0.07) 10px),repeating-linear-gradient(90deg,transparent,transparent 9px,rgba(255,255,255,0.07) 9px,rgba(255,255,255,0.07) 10px)' }} />
+    case 'Barria':
+      return <>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:10, background:'linear-gradient(180deg,rgba(255,255,255,0.65),rgba(255,255,255,0.08))', borderRadius:'50% 50% 0 0' }} />
+        <div style={{ position:'absolute', top:'28%', left:'30%', width:1, height:13, background:'rgba(255,255,255,0.3)', transform:'rotate(15deg)' }} />
+        <div style={{ position:'absolute', top:'35%', left:'55%', width:1, height:9, background:'rgba(255,255,255,0.25)', transform:'rotate(-25deg)' }} />
+      </>
+    default:
+      return null
+  }
+}
+
+function PlanetSphere({ name, color, size = 34 }: { name: string; color: string; size?: number }) {
+  return (
+    <div style={{
+      position: 'relative',
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      overflow: 'hidden',
+      flexShrink: 0,
+      background: `radial-gradient(circle at 35% 30%, ${color}ee, ${color}55)`,
+      boxShadow: `0 0 16px ${color}cc, 0 0 4px ${color}55`,
+    }}>
+      <PlanetSphereDetails name={name} />
+    </div>
+  )
 }
 
 export default function FacilitatorDashboard() {
@@ -150,7 +224,7 @@ export default function FacilitatorDashboard() {
     if (!id) { window.location.href = '/facilitator'; return }
     sessionIdRef.current = id
     loadSession(id)
-    QRCode.toDataURL(`${window.location.origin}/join`, { width: 160, margin: 1, color: { dark: '#00f5ff', light: '#0a0a1a' } }).then(setQrUrl)
+    QRCode.toDataURL(`${window.location.origin}/join`, { width: 160, margin: 1, color: { dark: '#d4a0ff', light: '#07021a' } }).then(setQrUrl)
 
     const es = new EventSource(`/api/sse?sessionId=${id}`)
     es.onmessage = (e) => {
@@ -259,7 +333,7 @@ export default function FacilitatorDashboard() {
 
   if (!session) return (
     <div className="min-h-screen flex items-center justify-center">
-      <p className="font-display text-sm tracking-widest glow-cyan">INITIALIZING COMMAND CENTER...</p>
+      <p className="font-display text-sm tracking-widest" style={{ color: 'var(--stardust)' }}>INITIALIZING COMMAND CENTER...</p>
     </div>
   )
 
@@ -322,7 +396,7 @@ export default function FacilitatorDashboard() {
         {/* ── Top Header Bar ── */}
         <div className="flex items-center justify-between mb-4 px-1">
           <div>
-            <h1 className="font-display text-3xl font-black tracking-widest glow-cyan">STAR PACT</h1>
+            <h1 className="font-display text-3xl font-black tracking-widest" style={{ color: 'var(--stardust)', textShadow: '0 0 30px rgba(155,89,182,0.7), 0 0 60px rgba(155,89,182,0.3)' }}>STAR PACT</h1>
             <p className="font-display text-xs tracking-widest text-slate-500">FEDERATION COMMAND — FACILITATOR CONSOLE</p>
           </div>
           <div className="flex items-center gap-4">
@@ -456,35 +530,76 @@ export default function FacilitatorDashboard() {
 
             {/* Planet Scoreboard */}
             <div className="sp-card p-4">
-              <p className="font-display text-xs tracking-widest text-slate-500 mb-3">🪐 PLANETARY RESOURCE STATUS</p>
+              <div className="flex items-center gap-2 mb-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <ellipse cx="12" cy="12" rx="11" ry="4.2" transform="rotate(-30 12 12)"/>
+                  <ellipse cx="12" cy="12" rx="11" ry="4.2" transform="rotate(30 12 12)"/>
+                </svg>
+                <p className="font-display text-xs tracking-widest text-slate-500">PLANETARY RESOURCE STATUS</p>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {session.countries.map(c => {
                   const dots = getPromiseDots(c, promiseChecks)
                   const col = resolveColor(c.color)
                   return (
-                    <div key={c.id} className="sp-card p-3" style={{ borderLeft: `3px solid ${col}` }}>
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="font-display text-xs font-bold tracking-wide" style={{ color: col, textShadow: `0 0 8px ${col}60` }}>{c.name}</p>
-                        <div className="flex gap-1 mt-0.5">
-                          {dots.map((d, i) => (
-                            <div key={i} className="w-2 h-2 rounded-full" style={{
-                              background: d === 'green' ? '#22c55e' : d === 'amber' ? '#fbbf24' : d === 'red' ? 'var(--red-raid)' : 'rgba(255,255,255,0.15)'
-                            }} />
+                    <div key={c.id} style={{
+                      borderRadius: 8,
+                      padding: '10px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      background: `linear-gradient(90deg, ${col}09 0%, transparent 70px), rgba(255,255,255,0.02)`,
+                      border: `1px solid ${col}33`,
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}>
+                      <PlanetSphere name={c.name} color={col} size={34} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p className="font-display font-bold tracking-wide mb-1" style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: col, textShadow: `0 0 8px ${col}60` }}>
+                          {c.name}
+                        </p>
+                        <div style={{ display: 'flex' }}>
+                          {(['food', 'environment', 'wealth'] as const).map((r, idx) => (
+                            <div key={r} style={{
+                              flex: 1, textAlign: 'center',
+                              borderRight: idx < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                              padding: '0 4px',
+                            }}>
+                              <div className="font-display font-bold" style={{ fontSize: '0.75rem', color: col, lineHeight: 1 }}>{c[r]}</div>
+                              <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 1 }}>
+                                {RES_LABELS[r].slice(0, 3)}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        {(['food','wealth','environment','kushBalls'] as const).map(r => (
-                          <div key={r} className="flex items-center gap-1">
-                            <span className="text-xs">{RES_ICONS[r]}</span>
-                            <span className="font-display text-sm font-bold" style={{ color: col }}>{c[r]}</span>
-                            <span className="text-xs text-slate-600">{RES_LABELS[r].slice(0,3)}</span>
-                          </div>
+                      <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                        {dots.map((d, i) => (
+                          <div key={i} style={{
+                            width: 7, height: 7, borderRadius: '50%',
+                            background: d === 'green' ? '#22c55e' : d === 'amber' ? '#fbbf24' : d === 'red' ? 'var(--red-raid)' : 'rgba(255,255,255,0.15)',
+                            boxShadow: d === 'green' ? '0 0 5px #22c55e' : d === 'amber' ? '0 0 5px #fbbf24' : d === 'red' ? '0 0 5px var(--red-raid)' : 'none',
+                          }} />
                         ))}
                       </div>
                     </div>
                   )
                 })}
+              </div>
+              {/* Pact dot legend */}
+              <div style={{ display:'flex', gap:16, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(155,89,182,0.12)', flexWrap:'wrap' }}>
+                {[
+                  { color: '#22c55e', shadow: '#22c55e', label: 'Pact met' },
+                  { color: '#fbbf24', shadow: '#fbbf24', label: 'At risk' },
+                  { color: 'var(--red-raid)', shadow: '#ff3b3b', label: 'Failed' },
+                  { color: 'rgba(255,255,255,0.18)', shadow: 'none', label: 'Pending' },
+                ].map(({ color, shadow, label }) => (
+                  <div key={label} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <div style={{ width:9, height:9, borderRadius:'50%', background:color, boxShadow: shadow !== 'none' ? `0 0 5px ${shadow}` : 'none' }} />
+                    <span className="font-display" style={{ fontSize:'0.6rem', letterSpacing:'1px', color:'rgba(200,180,255,0.55)' }}>{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -506,12 +621,15 @@ export default function FacilitatorDashboard() {
                   <p className="font-display text-xs tracking-widest text-slate-700">MONITORING CHANNELS...</p>
                 )}
                 {tradeFeed.map((t) => (
-                  <div key={t.id} className="trade-feed-entry text-xs p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--divider)' }}>
-                    <p className="font-display text-xs" style={{ color: t.status === 'ACCEPTED' ? '#22c55e' : t.status === 'REJECTED' ? 'var(--red-raid)' : 'var(--cyan)' }}>
+                  <div key={t.id} className="trade-feed-entry p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}>
+                    <p className="font-display" style={{
+                      fontSize: '0.68rem', letterSpacing: '1px', marginBottom: 3,
+                      color: t.status === 'ACCEPTED' ? '#4fc3f7' : t.status === 'REJECTED' ? '#ff7875' : '#c9a9ff',
+                    }}>
                       {t.status === 'ACCEPTED' ? '✓' : t.status === 'REJECTED' ? '✗' : '⏳'} {t.senderName} → {t.receiverName}
                     </p>
-                    <p className="text-slate-400 mt-0.5">
-                      {t.offerAmount} {RES_ICONS[t.offerResource]} ↔ {t.requestAmount} {RES_ICONS[t.requestResource]}
+                    <p style={{ fontSize: '0.72rem', color: 'rgba(220,200,255,0.6)' }}>
+                      {t.offerAmount} {RES_ICONS[t.offerResource]} {RES_LABELS[t.offerResource]} ↔ {t.requestAmount} {RES_ICONS[t.requestResource]} {RES_LABELS[t.requestResource]}
                     </p>
                   </div>
                 ))}
