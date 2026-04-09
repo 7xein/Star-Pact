@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Layers, Activity, Clock, Globe } from 'lucide-react'
 
 interface Country {
   id: string
@@ -51,8 +52,8 @@ interface Scandal {
 }
 
 const RESOURCES = ['food', 'wealth', 'environment', 'kushBalls'] as const
-const RES_LABELS: Record<string, string> = { food: 'Energy', wealth: 'Population', environment: 'Oxygen', kushBalls: 'Smugglers' }
-const RES_ICONS: Record<string, string>  = { food: '⚡', wealth: '👥', environment: '🌿', kushBalls: '🕵️' }
+const RES_LABELS: Record<string, string> = { food: 'Energy', wealth: 'Population', environment: 'Oxygen', kushBalls: 'Rockets' }
+const RES_ICONS: Record<string, string>  = { food: '⚡', wealth: '👥', environment: '💨', kushBalls: '🚀' }
 
 const PHASE_LABELS: Record<string, string> = {
   TRADING: '⚡ Trading Phase', PROMISE_CHECK: '📋 Promise Check',
@@ -71,12 +72,86 @@ function getCookie(name: string) {
   return m ? m[2] : null
 }
 
-type TabId = 'passport' | 'resources' | 'promises' | 'relations'
+type TabId = 'codex' | 'resources' | 'pacts' | 'orbit'
+
+function PlanetSphereDetails({ name }: { name: string }) {
+  switch (name) {
+    case 'Antica':
+      return <>
+        <div style={{ position:'absolute', top:'28%', left:'22%', width:6, height:6, borderRadius:'50%', background:'rgba(0,0,0,0.4)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'55%', width:5, height:5, borderRadius:'50%', background:'rgba(0,0,0,0.35)' }} />
+        <div style={{ position:'absolute', top:'40%', left:0, right:0, height:5, background:'linear-gradient(90deg,transparent,rgba(255,160,50,0.45),transparent)' }} />
+      </>
+    case 'Portswana':
+      return <>
+        <div style={{ position:'absolute', top:'30%', left:'40%', width:7, height:7, borderRadius:'50%', background:'rgba(160,80,0,0.4)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'20%', width:5, height:5, borderRadius:'50%', background:'rgba(160,80,0,0.3)' }} />
+      </>
+    case 'Samosia':
+      return <>
+        <div style={{ position:'absolute', top:'20%', left:'30%', width:13, height:9, borderRadius:'40%', background:'rgba(0,100,30,0.55)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'15%', width:10, height:8, borderRadius:'40%', background:'rgba(0,100,30,0.45)' }} />
+      </>
+    case 'Bintu':
+      return <>
+        <div style={{ position:'absolute', top:'15%', left:'50%', width:1, height:22, background:'rgba(255,255,255,0.25)', transform:'rotate(30deg)' }} />
+        <div style={{ position:'absolute', top:'15%', left:'60%', width:1, height:18, background:'rgba(255,255,255,0.18)', transform:'rotate(-20deg)' }} />
+        <div style={{ position:'absolute', top:'55%', left:'25%', width:1, height:16, background:'rgba(255,255,255,0.2)', transform:'rotate(45deg)' }} />
+      </>
+    case 'Mertante':
+      return <>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:10, background:'linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0.08))', borderRadius:'50% 50% 0 0' }} />
+        <div style={{ position:'absolute', top:'35%', left:0, right:0, height:4, background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)' }} />
+      </>
+    case 'Rostotto':
+      return <>
+        <div style={{ position:'absolute', top:0, left:'40%', width:5, height:'100%', background:'linear-gradient(90deg,transparent,rgba(0,0,0,0.5),transparent)', transform:'rotate(20deg)' }} />
+        <div style={{ position:'absolute', top:0, left:'42%', width:2, height:'100%', background:'linear-gradient(180deg,transparent,rgba(224,64,251,0.6),transparent)', transform:'rotate(20deg)' }} />
+      </>
+    case 'Jasna':
+      return <>
+        <div style={{ position:'absolute', top:'30%', left:0, right:0, height:4, background:'rgba(120,50,0,0.4)' }} />
+        <div style={{ position:'absolute', top:'55%', left:0, right:0, height:3, background:'rgba(120,50,0,0.3)' }} />
+      </>
+    case 'Geldar':
+      return <>
+        <div style={{ position:'absolute', top:'20%', left:'10%', width:16, height:16, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.25)' }} />
+        <div style={{ position:'absolute', top:'35%', left:0, right:0, height:5, background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)' }} />
+      </>
+    case 'Halportia':
+      return <div style={{ position:'absolute', inset:0, backgroundImage:'repeating-linear-gradient(0deg,transparent,transparent 9px,rgba(255,255,255,0.07) 9px,rgba(255,255,255,0.07) 10px),repeating-linear-gradient(90deg,transparent,transparent 9px,rgba(255,255,255,0.07) 9px,rgba(255,255,255,0.07) 10px)' }} />
+    case 'Barria':
+      return <>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:10, background:'linear-gradient(180deg,rgba(255,255,255,0.65),rgba(255,255,255,0.08))', borderRadius:'50% 50% 0 0' }} />
+        <div style={{ position:'absolute', top:'28%', left:'30%', width:1, height:13, background:'rgba(255,255,255,0.3)', transform:'rotate(15deg)' }} />
+        <div style={{ position:'absolute', top:'35%', left:'55%', width:1, height:9, background:'rgba(255,255,255,0.25)', transform:'rotate(-25deg)' }} />
+      </>
+    default:
+      return null
+  }
+}
+
+function PlanetSphere({ name, color, size = 32 }: { name: string; color: string; size?: number }) {
+  return (
+    <div style={{
+      position: 'relative',
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      overflow: 'hidden',
+      flexShrink: 0,
+      background: `radial-gradient(circle at 35% 30%, ${color}ee, ${color}55)`,
+      boxShadow: `0 0 14px ${color}cc, 0 0 4px ${color}55`,
+    }}>
+      <PlanetSphereDetails name={name} />
+    </div>
+  )
+}
 
 export default function PlayPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [myCountry, setMyCountry] = useState<Country | null>(null)
-  const [tab, setTab] = useState<TabId>('resources')
+  const [tab, setTab] = useState<TabId>('codex')
   const [incomingTrades, setIncomingTrades] = useState<Trade[]>([])
   const [activeScandals, setActiveScandals] = useState<Scandal[]>([])
   const [notification, setNotification] = useState<string | null>(null)
@@ -261,11 +336,11 @@ export default function PlayPage() {
   const pendingTrades = incomingTrades.filter(t => t.status === 'PENDING')
   const openRaids = activeScandals.filter(s => s.status === 'OPEN' && s.attackerId !== myCountry.id && s.defenderId !== myCountry.id)
 
-  const TABS: { id: TabId; icon: string; label: string }[] = [
-    { id: 'passport', icon: '📋', label: 'Passport' },
-    { id: 'resources', icon: '⚡', label: 'Resources' },
-    { id: 'promises', icon: '🎯', label: 'Promises' },
-    { id: 'relations', icon: '🌐', label: 'Relations' },
+  const TABS: { id: TabId; icon: React.ReactNode; label: string }[] = [
+    { id: 'codex',     icon: <Layers size={18} />,   label: 'Codex' },
+    { id: 'resources', icon: <Activity size={18} />, label: 'Resources' },
+    { id: 'pacts',     icon: <Clock size={18} />,    label: 'Pacts' },
+    { id: 'orbit',     icon: <Globe size={18} />,    label: 'Orbit' },
   ]
 
   return (
@@ -275,7 +350,7 @@ export default function PlayPage() {
       {notification && (
         <div className="fixed top-3 left-3 right-3 max-w-lg mx-auto z-50 anim-slide-down rounded-xl p-3 text-center text-sm font-display tracking-wide"
           style={{
-            background: notifType === 'raid' ? 'rgba(255,59,59,0.2)' : notifType === 'error' ? 'rgba(255,59,59,0.15)' : 'rgba(0,245,255,0.1)',
+            background: notifType === 'raid' ? 'rgba(255,59,59,0.2)' : notifType === 'error' ? 'rgba(255,59,59,0.15)' : 'rgba(155,89,182,0.1)',
             border: `1px solid ${notifType === 'raid' || notifType === 'error' ? 'rgba(255,59,59,0.5)' : 'var(--cyan-dim)'}`,
             backdropFilter: 'blur(8px)',
             color: notifType === 'raid' || notifType === 'error' ? 'var(--red-raid)' : 'var(--cyan)',
@@ -285,17 +360,28 @@ export default function PlayPage() {
       )}
 
       {/* ── Header ── */}
-      <div className="p-4 sp-card mx-2 mt-2 rounded-2xl" style={{ borderLeft: `4px solid ${myColor}`, boxShadow: `0 0 20px ${myColor}20` }}>
-        <div className="flex justify-between items-center">
+      <div className="relative overflow-hidden px-4 pt-4 pb-3"
+        style={{
+          background: `linear-gradient(180deg, ${myColor}28 0%, ${myColor}08 60%, transparent 100%)`,
+          borderBottom: `1px solid ${myColor}28`,
+        }}>
+        <div className="flex items-center gap-3">
+          <PlanetSphere name={myCountry.name} color={myColor} size={32} />
           <div>
-            <h1 className="font-display text-xl font-black tracking-wider" style={{ color: myColor, textShadow: `0 0 12px ${myColor}80` }}>
+            <h1 className="font-display font-black tracking-wider"
+              style={{ fontSize: '1rem', lineHeight: 1.1, color: myColor, textShadow: `0 0 12px ${myColor}80` }}>
               {myCountry.name}
             </h1>
-            <p className="font-display text-xs tracking-widest text-slate-500 uppercase">Planetary Governor</p>
+            <p className="font-display uppercase"
+              style={{ fontSize: '0.5rem', letterSpacing: '1.5px', color: `${myColor}70` }}>
+              Planetary Governor
+            </p>
           </div>
-          <div className="text-right">
-            <p className="font-display text-2xl font-black glow-cyan">Y{session.year}</p>
-            <span className={`phase-badge ${PHASE_CLASS[session.phase] || 'phase-yearend'}`}>
+          <div className="ml-auto text-right">
+            <p className="font-display font-black" style={{ fontSize: '1.5rem', lineHeight: 1, color: 'var(--stardust)', textShadow: '0 0 12px rgba(155,89,182,0.6)' }}>
+              Y{session.year}
+            </p>
+            <span className={`phase-badge ${PHASE_CLASS[session.phase] || 'phase-yearend'}`} style={{ fontSize: '0.5rem' }}>
               {PHASE_LABELS[session.phase]?.split(' ').slice(1).join(' ') || session.phase}
             </span>
           </div>
@@ -342,8 +428,8 @@ export default function PlayPage() {
               borderBottom: tab === t.id ? `2px solid ${myColor}` : '2px solid transparent',
               color: tab === t.id ? myColor : 'rgba(148,163,184,0.7)',
             }}>
-            <span className="text-base">{t.icon}</span>
-            <span className="font-display text-xs tracking-widest" style={{ fontSize: '0.6rem' }}>{t.label.toUpperCase()}</span>
+            <span className="flex items-center justify-center" style={{ height: 20 }}>{t.icon}</span>
+            <span className="font-display tracking-widest" style={{ fontSize: '0.55rem' }}>{t.label.toUpperCase()}</span>
           </button>
         ))}
       </div>
@@ -384,8 +470,8 @@ export default function PlayPage() {
           </>
         )}
 
-        {/* PASSPORT */}
-        {tab === 'passport' && (
+        {/* CODEX */}
+        {tab === 'codex' && (
           <>
             <div className="sp-card p-5 rounded-2xl" style={{ borderLeft: `4px solid ${myColor}` }}>
               <h2 className="font-display text-2xl font-black mb-1" style={{ color: myColor, textShadow: `0 0 12px ${myColor}60` }}>
@@ -404,16 +490,16 @@ export default function PlayPage() {
           </>
         )}
 
-        {/* PROMISES */}
-        {tab === 'promises' && (
+        {/* PACTS */}
+        {tab === 'pacts' && (
           <>
-            <p className="font-display text-xs tracking-widest text-slate-500 px-1">GALACTIC TREATY COMMITMENTS</p>
+            <p className="font-display text-xs tracking-widest text-slate-500 px-1">GALACTIC PACT COMMITMENTS</p>
             {promises.map((p, i) => {
               const current = myCountry[p.resource as keyof Country] as number
               const pct = Math.min(100, (current / p.target) * 100)
               const isDue = p.byYear <= session.year
               const met = current >= p.target
-              const color = pct >= 100 ? '#22c55e' : pct >= 60 ? '#fbbf24' : 'var(--red-raid)'
+              const color = pct >= 100 ? myColor : pct >= 60 ? '#fbbf24' : 'var(--red-raid)'
               return (
                 <div key={i} className="sp-card p-4 rounded-2xl"
                   style={{ borderLeft: `3px solid ${isDue && !met ? 'var(--red-raid)' : met ? '#22c55e' : 'var(--card-border)'}` }}>
@@ -440,8 +526,8 @@ export default function PlayPage() {
           </>
         )}
 
-        {/* RELATIONS */}
-        {tab === 'relations' && (
+        {/* ORBIT */}
+        {tab === 'orbit' && (
           <>
             {(['rightOn', 'allRight', 'writeOff'] as const).map(rel => {
               const label = rel === 'rightOn' ? 'Warp Lane Access' : rel === 'allRight' ? 'Diplomatic Clearance' : 'Blockaded'
@@ -571,7 +657,7 @@ export default function PlayPage() {
         <div className="sp-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowRaidModal(false) }}>
           <div className="sp-modal sp-modal-red">
             <p className="font-display text-xs tracking-widest mb-1" style={{ color: 'var(--red-raid)', textShadow: 'var(--red-glow)' }}>☠️ PIRACY RAID</p>
-            <p className="text-xs text-slate-500 mb-4">⚠️ This action will hire your smugglers. Costs 1 Smuggler. Choose your target wisely.</p>
+            <p className="text-xs text-slate-500 mb-4">⚠️ This action deploys your rockets. Costs 1 Rocket. Choose your target wisely.</p>
             <div className="space-y-3">
               <select value={scandalTarget} onChange={e => setScandalTarget(e.target.value)} className="sp-input">
                 <option value="">Select target planet</option>
