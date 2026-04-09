@@ -583,8 +583,8 @@ export default function FacilitatorDashboard() {
                               borderRight: idx < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
                               padding: '0 4px',
                             }}>
-                              <div className="font-display font-bold" style={{ fontSize: '0.75rem', color: col, lineHeight: 1 }}>{c[r]}</div>
-                              <div style={{ fontSize: '0.45rem', color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 1 }}>
+                              <div className="font-display font-bold" style={{ fontSize: '0.9rem', color: col, lineHeight: 1 }}>{c[r]}</div>
+                              <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 1 }}>
                                 {RES_LABELS[r].slice(0, 3)}
                               </div>
                             </div>
@@ -624,8 +624,8 @@ export default function FacilitatorDashboard() {
           {/* ── Right: Trade Feed + QR ── */}
           <div style={{ display:'flex', flexDirection:'column', gap:8, minHeight:0, overflow:'hidden' }}>
             {/* QR Code */}
-            <div className="sp-card p-4 text-center">
-              {qrUrl && <img src={qrUrl} alt="Join QR" className="w-32 h-32 mx-auto rounded-lg mb-2" />}
+            <div className="sp-card p-4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              {qrUrl && <img src={qrUrl} alt="Join QR" className="w-32 h-32 rounded-lg mb-2" style={{ display: 'block' }} />}
               <p className="font-display text-xs tracking-widest" style={{ color: 'var(--cyan)' }}>SCAN TO JOIN</p>
               <p className="text-xs text-slate-600 mt-1">/join</p>
             </div>
