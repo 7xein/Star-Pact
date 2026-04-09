@@ -146,8 +146,8 @@ body > * { position: relative; z-index: 1; }
 
 /* ── Animations ─────────────────────────────────────────── */
 @keyframes pulse-glow {
-  0%, 100% { text-shadow: 0 0 8px var(--cyan), 0 0 16px rgba(0,245,255,0.3); }
-  50%       { text-shadow: 0 0 16px var(--cyan), 0 0 32px rgba(0,245,255,0.6), 0 0 48px rgba(0,245,255,0.2); }
+  0%, 100% { text-shadow: 0 0 8px var(--cyan), 0 0 16px rgba(155, 89, 182, 0.3); }
+  50%       { text-shadow: 0 0 16px var(--cyan), 0 0 32px rgba(155, 89, 182, 0.6), 0 0 48px rgba(155, 89, 182, 0.2); }
 }
 @keyframes pulse-glow-red {
   0%, 100% { text-shadow: 0 0 8px var(--red-raid), 0 0 16px rgba(255,59,59,0.3); }
