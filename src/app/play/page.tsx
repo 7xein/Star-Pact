@@ -323,8 +323,8 @@ export default function PlayPage() {
   if (!session || !myCountry) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <div className="text-4xl mb-3">🪐</div>
-        <p className="font-display text-xs tracking-widest glow-cyan">CONNECTING TO FEDERATION...</p>
+        <div style={{ width:48, height:48, borderRadius:'50%', margin:'0 auto 16px', background:'radial-gradient(circle at 35% 35%, #9b59b6, #4a0080)', boxShadow:'0 0 24px rgba(155,89,182,0.8)' }} />
+        <p className="font-display text-sm tracking-widest" style={{ color:'var(--stardust)' }}>CONNECTING TO FEDERATION...</p>
       </div>
     </div>
   )
