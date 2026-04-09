@@ -166,7 +166,7 @@ function PlanetSphereDetails({ name }: { name: string }) {
   }
 }
 
-function PlanetSphere({ name, color, size = 34 }: { name: string; color: string; size?: number }) {
+function PlanetSphere({ name, color, size = 38 }: { name: string; color: string; size?: number }) {
   return (
     <div style={{
       position: 'relative',
@@ -397,7 +397,7 @@ export default function FacilitatorDashboard() {
         <div className="flex items-center justify-between mb-4 px-1">
           <div>
             <h1 className="font-display text-3xl font-black tracking-widest" style={{ color: 'var(--stardust)', textShadow: '0 0 30px rgba(155,89,182,0.7), 0 0 60px rgba(155,89,182,0.3)' }}>STAR PACT</h1>
-            <p className="font-display text-xs tracking-widest text-slate-500">FEDERATION COMMAND — FACILITATOR CONSOLE</p>
+            <p className="font-display text-xs tracking-widest" style={{ color: '#3d2860' }}>FEDERATION COMMAND · FACILITATOR CONSOLE</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-center">
@@ -485,7 +485,7 @@ export default function FacilitatorDashboard() {
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {s.alliances?.map((a, i) => (
                             <span key={i} className="text-xs px-2 py-0.5 rounded-full font-display"
-                              style={{ background: a.side === 'ATTACKER' ? 'rgba(255,59,59,0.2)' : 'rgba(0,245,255,0.1)', color: a.side === 'ATTACKER' ? 'var(--red-raid)' : 'var(--cyan)', border: '1px solid currentColor' }}>
+                              style={{ background: a.side === 'ATTACKER' ? 'rgba(255,59,59,0.2)' : 'rgba(155,89,182,0.15)', color: a.side === 'ATTACKER' ? 'var(--red-raid)' : 'var(--cyan)', border: '1px solid currentColor' }}>
                               {a.country?.name}
                             </span>
                           ))}
@@ -615,7 +615,13 @@ export default function FacilitatorDashboard() {
 
             {/* Trade Feed */}
             <div className="sp-card p-4 flex-1">
-              <p className="font-display text-xs tracking-widest text-slate-500 mb-3">📡 TRADE ACTIVITY LOG</p>
+              <div className="flex items-center gap-2 mb-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12,5 19,12 12,19"/>
+                </svg>
+                <p className="font-display text-xs tracking-widest text-slate-500">TRADE ACTIVITY LOG</p>
+              </div>
               <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {tradeFeed.length === 0 && (
                   <p className="font-display text-xs tracking-widest text-slate-700">MONITORING CHANNELS...</p>

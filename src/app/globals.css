@@ -139,7 +139,11 @@ body > * { position: relative; z-index: 1; }
   color: #74b9ff;
   border: 1px solid rgba(52, 152, 219, 0.3);
 }
-.phase-promise    { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+.phase-promise {
+  background: rgba(155, 89, 182, 0.15);
+  color: #9b59b6;
+  border: 1px solid rgba(155, 89, 182, 0.3);
+}
 .phase-raid       { background: rgba(255,59,59,0.15); color: var(--red-raid); border: 1px solid rgba(255,59,59,0.3); }
 .phase-yearend    { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
 .phase-debrief    { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
