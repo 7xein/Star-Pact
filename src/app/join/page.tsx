@@ -136,7 +136,7 @@ export default function JoinPage() {
 
   return (
     <div className="min-h-screen p-4">
-      <div className="max-w-lg mx-auto">
+      <div className="mx-auto" style={{ maxWidth: '32rem' }}>
         {/* Header */}
         <div className="text-center mb-6 pt-4">
           <h1 className="font-display text-3xl font-black tracking-widest mb-1" style={{ color:'var(--stardust)', textShadow:'0 0 30px rgba(155,89,182,0.7)' }}>

@@ -361,12 +361,13 @@ export default function PlayPage() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col max-w-lg mx-auto">
+    <div className="min-h-screen flex flex-col mx-auto" style={{ maxWidth: '32rem' }}>
 
       {/* ── Notification Toast ── */}
       {notification && (
-        <div className="fixed top-3 left-3 right-3 max-w-lg mx-auto z-50 anim-slide-down rounded-xl p-3 text-center text-sm font-display tracking-wide"
+        <div className="fixed top-3 left-3 right-3 mx-auto z-50 anim-slide-down rounded-xl p-3 text-center text-sm font-display tracking-wide"
           style={{
+            maxWidth: '32rem',
             background: notifType === 'raid' ? 'rgba(255,59,59,0.2)' : notifType === 'error' ? 'rgba(255,59,59,0.15)' : 'rgba(155,89,182,0.1)',
             border: `1px solid ${notifType === 'raid' || notifType === 'error' ? 'rgba(255,59,59,0.5)' : 'var(--cyan-dim)'}`,
             backdropFilter: 'blur(8px)',
