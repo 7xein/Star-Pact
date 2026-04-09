@@ -554,7 +554,7 @@ export default function FacilitatorDashboard() {
                       position: 'relative',
                       overflow: 'hidden',
                     }}>
-                      <PlanetSphere name={c.name} color={col} size={34} />
+                      <PlanetSphere name={c.name} color={col} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p className="font-display font-bold tracking-wide mb-1" style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: col, textShadow: `0 0 8px ${col}60` }}>
                           {c.name}
