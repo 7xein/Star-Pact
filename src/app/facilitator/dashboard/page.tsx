@@ -433,26 +433,26 @@ export default function FacilitatorDashboard() {
         <div style={{ borderTop: '1px solid var(--divider)' }} className="mb-2" />
 
         {/* ── Timer + Controls ── */}
-        <div className="sp-card px-4 py-2 mb-2">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="min-w-[140px]">
-              <p className="font-display text-xs text-slate-500 tracking-widest mb-1">COUNTDOWN</p>
+        <div className="sp-card mb-2" style={{ padding: '8px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'nowrap', minWidth: 0 }}>
+            <div style={{ flexShrink: 0 }}>
+              <p className="font-display" style={{ fontSize: '0.45rem', letterSpacing: '2px', color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase', marginBottom: 2 }}>Countdown</p>
               <p className={`font-display font-black ${isUrgent ? 'anim-pulse-red' : 'glow-cyan'}`}
-                style={{ fontSize: '2.4rem', lineHeight: 1, color: isUrgent ? 'var(--red-raid)' : 'var(--cyan)' }}>
+                style={{ fontSize: '2rem', lineHeight: 1, color: isUrgent ? 'var(--red-raid)' : 'var(--cyan)' }}>
                 {timeLeft || '--:--'}
               </p>
             </div>
-            <div style={{ width: '1px', height: '44px', background: 'var(--divider)' }} />
-            <div className="flex items-center gap-2">
+            <div style={{ width: 1, height: 40, background: 'var(--divider)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <input type="number" value={timerMinutes} onChange={e => setTimerMinutes(Number(e.target.value))}
-                className="sp-input w-16 text-center font-display" min="1" max="60" />
-              <span className="text-xs text-slate-500 font-display tracking-widest">MIN</span>
+                className="sp-input font-display" style={{ width: 52, textAlign: 'center', padding: '4px 6px' }} min="1" max="60" />
+              <span className="font-display" style={{ fontSize: '0.5rem', letterSpacing: '1.5px', color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase' }}>Min</span>
             </div>
-            <button onClick={() => phaseAction('START_TIMER', { minutes: timerMinutes })} className="btn-cyan">▶ START</button>
-            <button onClick={() => phaseAction('PAUSE_TIMER')} className="btn-ghost">⏸ PAUSE</button>
-            <div className="flex-1" />
-            <button onClick={() => phaseAction('NEXT_PHASE')} className="btn-cyan">NEXT PHASE →</button>
-            <button onClick={() => phaseAction('NEXT_YEAR')} className="btn-ghost">NEXT YEAR ⏭</button>
+            <button onClick={() => phaseAction('START_TIMER', { minutes: timerMinutes })} className="btn-cyan" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>▶ START</button>
+            <button onClick={() => phaseAction('PAUSE_TIMER')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>⏸ PAUSE</button>
+            <div style={{ flex: 1 }} />
+            <button onClick={() => phaseAction('NEXT_PHASE')} className="btn-cyan" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT PHASE →</button>
+            <button onClick={() => phaseAction('NEXT_YEAR')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT YEAR ⏭</button>
           </div>
         </div>
 
