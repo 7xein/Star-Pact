@@ -390,7 +390,7 @@ export default function PlayPage() {
               {myCountry.name}
             </h1>
             <p className="font-display uppercase"
-              style={{ fontSize: '0.5rem', letterSpacing: '1.5px', color: `${myColor}70` }}>
+              style={{ fontSize: '0.6rem', letterSpacing: '1.5px', color: `${myColor}70` }}>
               Planetary Governor
             </p>
           </div>
@@ -398,7 +398,7 @@ export default function PlayPage() {
             <p className="font-display font-black" style={{ fontSize: '1.5rem', lineHeight: 1, color: 'var(--stardust)', textShadow: '0 0 12px rgba(155,89,182,0.6)' }}>
               Y{session.year}
             </p>
-            <span className={`phase-badge ${PHASE_CLASS[session.phase] || 'phase-yearend'}`} style={{ fontSize: '0.5rem' }}>
+            <span className={`phase-badge ${PHASE_CLASS[session.phase] || 'phase-yearend'}`} style={{ fontSize: '0.6rem' }}>
               {PHASE_LABELS[session.phase]?.split(' ').slice(1).join(' ') || session.phase}
             </span>
           </div>
@@ -407,7 +407,7 @@ export default function PlayPage() {
 
       {/* ── Incoming Trade Alerts ── */}
       {pendingTrades.map(t => (
-        <div key={t.id} className="mx-2 mt-2 sp-card p-3 rounded-xl"
+        <div key={t.id} className="mx-4 mt-2 sp-card p-3 rounded-xl"
           style={{ background: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.3)' }}>
           <p className="font-display text-xs tracking-wide text-amber-400 mb-1">📦 TRADE OFFER — {t.senderName}</p>
           <p className="text-xs text-slate-300">
@@ -423,7 +423,7 @@ export default function PlayPage() {
 
       {/* ── Raid Alliance Requests ── */}
       {openRaids.map(s => (
-        <div key={s.id} className="mx-2 mt-2 sp-card p-3 rounded-xl"
+        <div key={s.id} className="mx-4 mt-2 sp-card p-3 rounded-xl"
           style={{ background: 'rgba(255,59,59,0.08)', borderColor: 'rgba(255,59,59,0.3)' }}>
           <p className="font-display text-xs tracking-wide mb-1" style={{ color: 'var(--red-raid)' }}>
             ☠️ RAID: {s.attacker?.name} → {s.defender?.name}
@@ -437,7 +437,7 @@ export default function PlayPage() {
       ))}
 
       {/* ── Tab Bar ── */}
-      <div className="mx-2 mt-2 sp-card rounded-2xl overflow-hidden flex">
+      <div className="mx-4 mt-2 sp-card rounded-2xl overflow-hidden flex">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-3 flex flex-col items-center gap-0.5 transition-colors"
             style={{
@@ -446,13 +446,13 @@ export default function PlayPage() {
               color: tab === t.id ? myColor : 'rgba(148,163,184,0.7)',
             }}>
             <span className="flex items-center justify-center" style={{ height: 20 }}>{t.icon}</span>
-            <span className="font-display tracking-widest" style={{ fontSize: '0.55rem' }}>{t.label.toUpperCase()}</span>
+            <span className="font-display tracking-widest" style={{ fontSize: '0.65rem' }}>{t.label.toUpperCase()}</span>
           </button>
         ))}
       </div>
 
       {/* ── Tab Content ── */}
-      <div className="flex-1 overflow-y-auto px-2 pb-4 pt-2 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 space-y-3">
 
         {/* RESOURCES */}
         {tab === 'resources' && (

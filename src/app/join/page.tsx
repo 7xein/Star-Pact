@@ -160,14 +160,14 @@ export default function JoinPage() {
                 animationFillMode: 'both',
               }}
             >
-              <div className="flex items-center gap-3 mb-2">
-                <PlanetSphere name={c.name} color={c.color} />
+              <div className="flex items-center gap-2 mb-2">
+                <PlanetSphere name={c.name} color={c.color} size={34} />
                 <p className="font-display font-bold text-xs tracking-wider leading-tight"
-                  style={{ color: c.color, textShadow: `0 0 8px ${c.color}60` }}>
+                  style={{ color: c.color, textShadow: `0 0 8px ${c.color}60`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
                   {c.name.toUpperCase()}
                 </p>
               </div>
-              <p className="text-xs leading-tight" style={{ color:'rgba(255,255,255,0.4)' }}>{c.motto}</p>
+              <p className="text-xs" style={{ color:'rgba(255,255,255,0.4)', lineHeight: '1.4', maxHeight: '2.8em', overflow: 'hidden' }}>{c.motto}</p>
             </button>
           ))}
         </div>
