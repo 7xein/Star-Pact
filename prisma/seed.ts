@@ -10,7 +10,7 @@ const prisma = new PrismaClient({ adapter } as any)
 const COUNTRIES = [
   {
     name: 'Antica',
-    color: 'red',
+    color: '#ef4444',
     motto: 'Tomorrow Be True',
     story: 'A proud nation with a long memory and a short fuse.',
     famousFor: 'Its fiery debates and ancient wine festivals',
@@ -28,7 +28,7 @@ const COUNTRIES = [
   },
   {
     name: 'Portswana',
-    color: '#eab308',
+    color: '#ffd740',
     motto: 'Guts, Glory, and Good Looks',
     story: 'A nation of traders and storytellers, always looking for the next deal.',
     famousFor: 'Its golden markets and colorful festivals',
@@ -46,7 +46,7 @@ const COUNTRIES = [
   },
   {
     name: 'Samosia',
-    color: '#2d6a4f',
+    color: '#69f0ae',
     motto: 'We Never Forget',
     story: 'A nation with a long memory, deep forests, and an even deeper grudge list.',
     famousFor: 'Its ancient forests and legendary memory keepers',
@@ -64,7 +64,7 @@ const COUNTRIES = [
   },
   {
     name: 'Bintu',
-    color: '#f472b6',
+    color: '#f48fb1',
     motto: 'Whatever Your Heart Desires',
     story: 'A generous nation that believes in abundance — but is running low on food.',
     famousFor: 'Its lush gardens and famously warm hospitality',
@@ -82,7 +82,7 @@ const COUNTRIES = [
   },
   {
     name: 'Mertante',
-    color: '#86efac',
+    color: '#c8e6c9',
     motto: 'The Good, the Great, and the Green',
     story: 'An eco-nation trying to survive in a world that doesn\'t share its values.',
     famousFor: 'Its renewable energy program and eco-architecture',
@@ -100,7 +100,7 @@ const COUNTRIES = [
   },
   {
     name: 'Rostotto',
-    color: '#7c3aed',
+    color: '#e040fb',
     motto: 'Bold and True',
     story: 'A warrior nation that respects strength above all else.',
     famousFor: 'Its legendary warriors and fearless negotiators',
@@ -118,7 +118,7 @@ const COUNTRIES = [
   },
   {
     name: 'Jasna',
-    color: '#f97316',
+    color: '#ff7043',
     motto: 'We Need Only Us',
     story: 'A fiercely independent nation that prefers to rely on its own resources.',
     famousFor: 'Its self-sufficiency movement and vibrant street art',
@@ -136,7 +136,7 @@ const COUNTRIES = [
   },
   {
     name: 'Geldar',
-    color: '#2563eb',
+    color: '#4fc3f7',
     motto: 'The Rewarded',
     story: 'A prosperous nation that believes prosperity is a sign of virtue.',
     famousFor: 'Its banking system and elaborate reward ceremonies',
@@ -154,7 +154,7 @@ const COUNTRIES = [
   },
   {
     name: 'Halportia',
-    color: '#94a3b8',
+    color: '#b0bec5',
     motto: 'Sing a Song',
     story: 'A peaceful nation known for music, nature, and quiet diplomacy.',
     famousFor: 'Its song festivals and pristine mountain ranges',
@@ -172,7 +172,7 @@ const COUNTRIES = [
   },
   {
     name: 'Barria',
-    color: '#7dd3fc',
+    color: '#80deea',
     motto: 'To Defend and Defeat',
     story: 'A nation built on the principle that the best offense is a good defense.',
     famousFor: 'Its fortress cities and unbroken defensive record',
