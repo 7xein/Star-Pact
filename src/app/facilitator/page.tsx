@@ -39,12 +39,15 @@ export default function FacilitatorLogin() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="sp-card w-full max-w-md p-8">
-        {/* Logo / Title */}
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-block mb-3">
-            <span className="text-5xl">🪐</span>
-          </div>
-          <h1 className="font-display text-4xl font-black tracking-widest glow-cyan mb-2">
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%', margin: '0 auto 16px',
+            background: 'radial-gradient(circle at 35% 35%, #d4a0ff, #4a0080)',
+            boxShadow: '0 0 32px rgba(155,89,182,0.8)',
+          }} />
+          <h1 className="font-display text-4xl font-black tracking-widest mb-2"
+            style={{ color: 'var(--stardust)', textShadow: '0 0 30px rgba(155,89,182,0.7)' }}>
             STAR PACT
           </h1>
           <p className="text-xs tracking-widest text-slate-400 uppercase font-display">
@@ -52,7 +55,6 @@ export default function FacilitatorLogin() {
           </p>
         </div>
 
-        {/* Divider */}
         <div style={{ borderTop: '1px solid var(--divider)' }} className="mb-6" />
 
         <p className="text-xs font-display tracking-widest text-slate-500 uppercase mb-3">
