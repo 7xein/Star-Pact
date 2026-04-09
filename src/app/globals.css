@@ -6,17 +6,20 @@
 
 /* ── CSS Custom Properties ─────────────────────────────── */
 :root {
-  --bg-base: #0a0a1a;
-  --cyan: #00f5ff;
-  --cyan-dim: rgba(0, 245, 255, 0.2);
-  --cyan-glow: 0 0 10px #00f5ff, 0 0 20px rgba(0,245,255,0.4);
-  --red-raid: #ff3b3b;
-  --red-glow: 0 0 10px #ff3b3b, 0 0 20px rgba(255,59,59,0.4);
-  --card-bg: rgba(255, 255, 255, 0.05);
-  --card-border: rgba(0, 245, 255, 0.2);
-  --divider: rgba(0, 245, 255, 0.15);
+  --bg-base:    #07021a;
+  --void:       #07021a;
+  --cyan:       #9b59b6;
+  --cyan-dim:   rgba(155, 89, 182, 0.2);
+  --cyan-glow:  0 0 10px #9b59b6, 0 0 20px rgba(155, 89, 182, 0.4);
+  --stardust:   #d4a0ff;
+  --nebula-dark: #1e0d4e;
+  --red-raid:   #ff3b3b;
+  --red-glow:   0 0 10px #ff3b3b, 0 0 20px rgba(255, 59, 59, 0.4);
+  --card-bg:    rgba(255, 255, 255, 0.03);
+  --card-border: rgba(155, 89, 182, 0.18);
+  --divider:    rgba(155, 89, 182, 0.12);
   --font-display: 'Orbitron', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
 }
 
 /* ── Base ───────────────────────────────────────────────── */
@@ -30,43 +33,17 @@ body {
   overflow-x: hidden;
 }
 
-/* ── Star Field ─────────────────────────────────────────── */
+/* ── Nebula Gradients ───────────────────────────────────── */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image:
-    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.9) 0%, transparent 100%),
-    radial-gradient(1px 1px at 23% 42%, rgba(255,255,255,0.7) 0%, transparent 100%),
-    radial-gradient(1px 1px at 38% 8%,  rgba(255,255,255,0.8) 0%, transparent 100%),
-    radial-gradient(1px 1px at 52% 67%, rgba(255,255,255,0.6) 0%, transparent 100%),
-    radial-gradient(1px 1px at 61% 28%, rgba(255,255,255,0.9) 0%, transparent 100%),
-    radial-gradient(1px 1px at 74% 51%, rgba(255,255,255,0.7) 0%, transparent 100%),
-    radial-gradient(1px 1px at 83% 19%, rgba(255,255,255,0.8) 0%, transparent 100%),
-    radial-gradient(1px 1px at 91% 73%, rgba(255,255,255,0.6) 0%, transparent 100%),
-    radial-gradient(1px 1px at 6%  88%, rgba(255,255,255,0.7) 0%, transparent 100%),
-    radial-gradient(1px 1px at 17% 61%, rgba(255,255,255,0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 29% 93%, rgba(255,255,255,0.8) 0%, transparent 100%),
-    radial-gradient(1px 1px at 45% 37%, rgba(255,255,255,0.6) 0%, transparent 100%),
-    radial-gradient(1px 1px at 56% 82%, rgba(255,255,255,0.9) 0%, transparent 100%),
-    radial-gradient(1px 1px at 68% 11%, rgba(255,255,255,0.7) 0%, transparent 100%),
-    radial-gradient(1px 1px at 79% 44%, rgba(255,255,255,0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 88% 95%, rgba(255,255,255,0.8) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 3%  55%, rgba(255,255,255,0.6) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 33% 25%, rgba(255,255,255,0.9) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 47% 77%, rgba(255,255,255,0.7) 0%, transparent 100%),
-    radial-gradient(1.5px 1.5px at 72% 62%, rgba(255,255,255,0.8) 0%, transparent 100%),
-    radial-gradient(1px 1px at 14% 33%, rgba(200,220,255,0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 42% 58%, rgba(200,220,255,0.4) 0%, transparent 100%),
-    radial-gradient(1px 1px at 65% 87%, rgba(200,220,255,0.5) 0%, transparent 100%),
-    radial-gradient(1px 1px at 95% 40%, rgba(200,220,255,0.4) 0%, transparent 100%),
-    radial-gradient(1px 1px at 8%  71%, rgba(255,255,255,0.3) 0%, transparent 100%),
-    radial-gradient(1px 1px at 26% 5%,  rgba(255,255,255,0.4) 0%, transparent 100%),
-    radial-gradient(1px 1px at 58% 48%, rgba(255,255,255,0.3) 0%, transparent 100%),
-    radial-gradient(1px 1px at 85% 79%, rgba(255,255,255,0.4) 0%, transparent 100%);
-  background-size: 100% 100%;
+  background:
+    radial-gradient(ellipse at 5% 95%,  rgba(183, 0, 255, 0.08) 0%, transparent 45%),
+    radial-gradient(ellipse at 95% 5%,  rgba(0, 60, 255, 0.07)  0%, transparent 45%),
+    radial-gradient(ellipse at 50% 50%, rgba(80, 0, 160, 0.04)  0%, transparent 60%);
 }
 
 /* All direct page content sits above stars */
@@ -157,7 +134,11 @@ body > * { position: relative; z-index: 1; }
   border-radius: 999px;
   text-transform: uppercase;
 }
-.phase-trading    { background: rgba(0,245,255,0.15); color: var(--cyan); border: 1px solid var(--cyan-dim); }
+.phase-trading {
+  background: rgba(52, 152, 219, 0.15);
+  color: #74b9ff;
+  border: 1px solid rgba(52, 152, 219, 0.3);
+}
 .phase-promise    { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
 .phase-raid       { background: rgba(255,59,59,0.15); color: var(--red-raid); border: 1px solid rgba(255,59,59,0.3); }
 .phase-yearend    { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
@@ -253,7 +234,7 @@ body > * { position: relative; z-index: 1; }
   padding: 1.5rem;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 0 40px rgba(0,245,255,0.1);
+  box-shadow: 0 0 40px rgba(155, 89, 182, 0.12);
 }
 .sp-modal-red {
   background: #160a0a;
