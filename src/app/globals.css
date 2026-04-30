@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300;1,9..144,400&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 /* ── CSS Custom Properties ─────────────────────────────── */
@@ -15,7 +15,7 @@
   --card-bg:    rgba(255, 255, 255, 0.03);
   --card-border: rgba(244, 239, 229, 0.12);
   --divider:    rgba(244, 239, 229, 0.1);
-  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-display: 'Space Grotesk', 'Century Gothic', 'Futura', sans-serif;
   --font-mono:    'JetBrains Mono', 'Courier New', monospace;
   --font-body:    'Inter Tight', 'Inter', system-ui, sans-serif;
 }

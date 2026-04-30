@@ -21,7 +21,7 @@ const B_INK   = '#f4efe5'
 const B_FAINT = 'rgba(244,239,229,0.35)'
 const B_LINE  = 'rgba(244,239,229,0.12)'
 const B_GOLD  = '#e8c87a'
-const B_SERIF = '"Fraunces", "Georgia", serif'
+const B_SERIF = '"Space Grotesk", "Century Gothic", "Futura", sans-serif'
 const B_MONO  = '"JetBrains Mono", "Courier New", monospace'
 const B_SANS  = '"Inter Tight", "Inter", system-ui, sans-serif'
 
@@ -76,10 +76,10 @@ export default function JoinPage() {
           <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: B_FAINT, textTransform: 'uppercase', marginBottom: 8 }}>
             Nebula Alliance
           </div>
-          <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 300, fontStyle: 'italic', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+          <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
             Choose your <span style={{ color: B_GOLD }}>planet</span>.
           </div>
-          <div style={{ fontFamily: B_SERIF, fontSize: 14, fontStyle: 'italic', color: B_FAINT, marginTop: 10, lineHeight: 1.5, padding: '0 12px' }}>
+          <div style={{ fontFamily: B_SERIF, fontSize: 14, color: B_FAINT, marginTop: 10, lineHeight: 1.5, padding: '0 12px' }}>
             You are one of ten governors of the Outer Spiral. The Hollow Ring awaits.
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function JoinPage() {
                 <div style={{
                   fontFamily: B_SERIF,
                   fontSize: 12,
-                  fontStyle: 'italic',
+                  fontWeight: 400,
                   color: B_FAINT,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',

@@ -61,7 +61,8 @@ const B_INK   = '#f4efe5'
 const B_DIM   = 'rgba(244,239,229,0.6)'
 const B_FAINT = 'rgba(244,239,229,0.35)'
 const B_LINE  = 'rgba(244,239,229,0.12)'
-const B_SERIF = '"Fraunces", "Georgia", serif'
+const B_SERIF = '"Space Grotesk", "Century Gothic", "Futura", sans-serif'
+const B_SANS  = '"Inter Tight", system-ui, sans-serif'
 const B_MONO  = '"JetBrains Mono", "Courier New", monospace'
 
 const PHASE_LABELS: Record<string, string> = {
@@ -325,14 +326,16 @@ export default function PlayPage() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100dvh',
       maxWidth: '32rem',
       margin: '0 auto',
       display: 'flex',
       flexDirection: 'column',
       background: '#0b0a14',
-      fontFamily: '"Inter Tight", system-ui, sans-serif',
+      fontFamily: B_SANS,
       color: B_INK,
+      position: 'relative',
+      overflow: 'hidden',
     }}>
 
       {/* ── Notification ── */}
@@ -357,32 +360,21 @@ export default function PlayPage() {
 
       {/* ── Header ── */}
       <div style={{
-        padding: '16px 20px 14px',
+        padding: '14px 18px 12px',
         borderBottom: `1px solid ${B_LINE}`,
         display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
+        gridTemplateColumns: '1fr auto 1fr',
         alignItems: 'center',
-        gap: 12,
+        flexShrink: 0,
       }}>
-        <PlanetOrb name={myCountry.name} color={myColor} size={32} glow pulse={session.phase === 'SCANDAL'} />
-        <div>
-          <div style={{ fontFamily: B_SERIF, fontSize: 15, fontWeight: 300, fontStyle: 'italic', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
-            {myCountry.name}
-          </div>
-          <div style={{ fontFamily: B_MONO, fontSize: 8, letterSpacing: '0.25em', color: B_FAINT, marginTop: 2 }}>
-            PLANETARY GOVERNOR
-          </div>
+        <div style={{ fontFamily: B_SERIF, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
+          Nebula <span style={{ color: B_GOLD }}>·</span>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: B_SERIF, fontSize: 18, fontWeight: 300, fontStyle: 'italic', color: B_INK, lineHeight: 1 }}>
-            Ch.{session.year}
-          </div>
-          <div style={{
-            fontFamily: B_MONO, fontSize: 8, letterSpacing: '0.2em',
-            color: phaseColor, marginTop: 3,
-          }}>
-            {(PHASE_LABELS[session.phase] ?? session.phase).toUpperCase()}
-          </div>
+        <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.25em', color: B_FAINT, textAlign: 'center' }}>
+          CHAPTER {session.year}
+        </div>
+        <div style={{ textAlign: 'right', fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.18em', color: B_GOLD }}>
+          ● {(PHASE_LABELS[session.phase] ?? session.phase).toUpperCase()}
         </div>
       </div>
 
@@ -424,37 +416,8 @@ export default function PlayPage() {
         </div>
       ))}
 
-      {/* ── Tab Bar ── */}
-      <div style={{
-        display: 'flex',
-        borderBottom: `1px solid ${B_LINE}`,
-        marginTop: pendingTrades.length + openRaids.length > 0 ? 12 : 0,
-      }}>
-        {TABS.map(t => {
-          const active = tab === t.id
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              flex: 1, padding: '12px 0 10px',
-              background: 'transparent',
-              border: 'none',
-              borderTop: active ? `2px solid ${B_GOLD}` : '2px solid transparent',
-              cursor: 'pointer',
-              fontFamily: active ? B_SERIF : '"Inter Tight", system-ui, sans-serif',
-              fontSize: active ? 12 : 11,
-              fontStyle: active ? 'italic' : 'normal',
-              fontWeight: active ? 300 : 400,
-              letterSpacing: active ? '0.01em' : '0.06em',
-              color: active ? B_GOLD : B_FAINT,
-              transition: 'all 0.2s',
-            }}>
-              {active ? t.label : t.label.toUpperCase()}
-            </button>
-          )
-        })}
-      </div>
-
       {/* ── Tab Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 80px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0', paddingBottom: '144px' }}>
 
         {/* ── IDENTITY ── */}
         {tab === 'identity' && (
@@ -463,10 +426,10 @@ export default function PlayPage() {
               <PlanetOrb name={myCountry.name} color={myColor} size={150} glow pulse />
             </div>
 
-            <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 300, fontStyle: 'italic', letterSpacing: '-0.02em', lineHeight: 0.95, textAlign: 'center', marginBottom: 10 }}>
-              {myCountry.name}<span style={{ color: B_GOLD }}>.</span>
+            <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 0.95, textAlign: 'center', marginBottom: 10 }}>
+              {myCountry.name.charAt(0) + myCountry.name.slice(1).toLowerCase()}<span style={{ color: B_GOLD }}>.</span>
             </div>
-            <div style={{ fontFamily: B_SERIF, fontSize: 14, fontStyle: 'italic', color: B_DIM, textAlign: 'center', lineHeight: 1.5, marginBottom: 24 }}>
+            <div style={{ fontFamily: B_SERIF, fontSize: 14, color: B_GOLD, textAlign: 'center', lineHeight: 1.5, marginBottom: 24 }}>
               &ldquo;{myCountry.motto}&rdquo;
             </div>
 
@@ -504,7 +467,7 @@ export default function PlayPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                     <Label>{RES_ICONS[r]} {RES_LABELS[r]}</Label>
                     <div style={{
-                      fontFamily: B_SERIF, fontSize: 50, fontWeight: 300, fontStyle: 'italic',
+                      fontFamily: B_SERIF, fontSize: 50, fontWeight: 700,
                       lineHeight: 1, color: B_INK, letterSpacing: '-0.03em',
                     }}>
                       {val}
@@ -534,7 +497,7 @@ export default function PlayPage() {
         {tab === 'pacts' && (
           <div>
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 300, fontStyle: 'italic', color: B_INK, marginBottom: 4 }}>
+              <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 600, color: B_INK, marginBottom: 4 }}>
                 The pacts<span style={{ color: B_GOLD }}>.</span>
               </div>
               <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.3em', color: B_FAINT }}>
@@ -553,7 +516,7 @@ export default function PlayPage() {
                 <div key={i} style={{ marginBottom: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontFamily: B_SERIF, fontSize: 18, fontStyle: 'italic', color: B_INK }}>
+                      <div style={{ fontFamily: B_SERIF, fontSize: 18, fontWeight: 600, color: B_INK }}>
                         {RES_LABELS[p.resource]}
                         <span style={{ color: B_GOLD }}> → {p.target}</span>
                       </div>
@@ -605,7 +568,7 @@ export default function PlayPage() {
                               <PlanetOrb name={planet.name} color={planet.color} size={28} glow={false} />
                             )}
                             <div style={{
-                              fontFamily: B_SERIF, fontSize: 14, fontStyle: 'italic',
+                              fontFamily: B_SERIF, fontSize: 14, fontWeight: 500,
                               color: key === 'writeOff' ? B_FAINT : B_INK,
                               textDecoration: key === 'writeOff' ? 'line-through' : 'none',
                             }}>
@@ -628,20 +591,20 @@ export default function PlayPage() {
           <div style={{ marginTop: 8 }}>
             {debriefSubmitted ? (
               <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                <div style={{ fontFamily: B_SERIF, fontSize: 48, fontStyle: 'italic', color: B_GOLD, marginBottom: 12 }}>
+                <div style={{ fontFamily: B_SERIF, fontSize: 48, fontWeight: 700, color: B_GOLD, marginBottom: 12 }}>
                   ◉
                 </div>
                 <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: B_GOLD }}>
                   TRANSMISSION RECEIVED
                 </div>
-                <div style={{ fontFamily: B_SERIF, fontSize: 14, fontStyle: 'italic', color: B_FAINT, marginTop: 8 }}>
+                <div style={{ fontFamily: B_SANS, fontSize: 14, color: B_FAINT, marginTop: 8 }}>
                   Thank you, Governor.
                 </div>
               </div>
             ) : (
               <>
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 300, fontStyle: 'italic', color: B_INK, marginBottom: 4 }}>
+                  <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 700, color: B_INK, marginBottom: 4 }}>
                     Debrief<span style={{ color: B_GOLD }}>.</span>
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
@@ -690,11 +653,90 @@ export default function PlayPage() {
 
       </div>
 
+      {/* ── Action Ribbon (above tabs) ── */}
+      <div style={{
+        position: 'absolute', bottom: 64, left: 0, right: 0,
+        padding: '10px 16px', display: 'flex', gap: 8,
+        borderTop: `1px solid ${B_LINE}`,
+        background: `rgba(11,10,20,0.92)`, backdropFilter: 'blur(8px)',
+      }}>
+        {session.phase === 'TRADING' && (
+          <button onClick={() => setShowTradeModal(true)} style={{
+            flex: 1, padding: '12px 0',
+            background: B_GOLD, border: 'none', color: '#0b0a14',
+            fontFamily: B_SERIF, fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', letterSpacing: '-0.01em',
+          }}>
+            Propose a trade
+          </button>
+        )}
+        {session.phase === 'SCANDAL' && (
+          <button onClick={() => setShowEscalationModal(true)} style={{
+            flex: 1, padding: '12px 0',
+            background: '#ff3b3b', border: 'none', color: '#fff',
+            fontFamily: B_SERIF, fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', letterSpacing: '-0.01em',
+          }}>
+            Launch escalation
+          </button>
+        )}
+        {session.phase !== 'TRADING' && session.phase !== 'SCANDAL' && (
+          <div style={{ flex: 1, padding: '12px 0', textAlign: 'center', fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.3em', color: B_FAINT }}>
+            {PHASE_LABELS[session.phase]?.toUpperCase() ?? 'STANDBY'}
+          </div>
+        )}
+        {session.phase === 'SCANDAL' && (
+          <button onClick={() => setShowEscalationModal(true)} style={{
+            padding: '12px 16px', background: 'transparent',
+            border: `1px solid ${B_LINE}`, color: B_DIM,
+            fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.15em', cursor: 'pointer',
+          }}>
+            STAND ASIDE
+          </button>
+        )}
+        {session.phase === 'TRADING' && (
+          <button onClick={() => setShowEscalationModal(true)} style={{
+            padding: '12px 16px', background: 'transparent',
+            border: `1px solid ${B_LINE}`, color: B_DIM,
+            fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.15em', cursor: 'pointer',
+          }}>
+            RAID
+          </button>
+        )}
+      </div>
+
+      {/* ── Bottom Tab Bar ── */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: 64,
+        display: 'grid', gridTemplateColumns: 'repeat(4,1fr)',
+        borderTop: `1px solid ${B_LINE}`,
+        background: '#0b0a14',
+      }}>
+        {TABS.map(({ id, label }) => {
+          const active = tab === id
+          return (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding: '13px 0 16px',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: active ? B_GOLD : B_DIM,
+              fontFamily: B_SERIF, fontSize: 14, fontWeight: active ? 600 : 400,
+              letterSpacing: '-0.01em',
+              position: 'relative',
+            }}>
+              {label}
+              {active && (
+                <div style={{ position: 'absolute', top: 0, left: '30%', right: '30%', height: 1, background: B_GOLD }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       {/* ── Trade Modal ── */}
       {showTradeModal && (
         <div className="sp-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowTradeModal(false) }}>
           <div className="sp-modal">
-            <div style={{ fontFamily: B_SERIF, fontSize: 22, fontStyle: 'italic', marginBottom: 4 }}>
+            <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
               Propose trade<span style={{ color: B_GOLD }}>.</span>
             </div>
             <div style={{ height: 1, background: B_LINE, margin: '12px 0' }} />
@@ -722,7 +764,7 @@ export default function PlayPage() {
                   </select>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button onClick={() => setOfferAmount(a => Math.max(1, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
-                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontStyle: 'italic', color: B_GOLD, flex: 1, textAlign: 'center' }}>{offerAmount}</span>
+                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: B_GOLD, flex: 1, textAlign: 'center' }}>{offerAmount}</span>
                     <button onClick={() => setOfferAmount(a => a + 1)} className="btn-ghost" style={{ padding: '4px 10px' }}>+</button>
                   </div>
                 </div>
@@ -733,7 +775,7 @@ export default function PlayPage() {
                   </select>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button onClick={() => setRequestAmount(a => Math.max(1, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
-                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontStyle: 'italic', color: B_GOLD, flex: 1, textAlign: 'center' }}>{requestAmount}</span>
+                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: B_GOLD, flex: 1, textAlign: 'center' }}>{requestAmount}</span>
                     <button onClick={() => setRequestAmount(a => a + 1)} className="btn-ghost" style={{ padding: '4px 10px' }}>+</button>
                   </div>
                 </div>
@@ -754,7 +796,7 @@ export default function PlayPage() {
       {showEscalationModal && (
         <div className="sp-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowEscalationModal(false) }}>
           <div className="sp-modal sp-modal-red">
-            <div style={{ fontFamily: B_SERIF, fontSize: 22, fontStyle: 'italic', color: '#ff3b3b', marginBottom: 4 }}>
+            <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 700, color: '#ff3b3b', marginBottom: 4 }}>
               Launch escalation<span style={{ color: B_INK }}>.</span>
             </div>
             <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.25em', color: B_FAINT, marginBottom: 12 }}>
@@ -782,7 +824,7 @@ export default function PlayPage() {
                   <Label color="rgba(255,59,59,0.7)">Amount</Label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                     <button onClick={() => setScandalAmount(a => Math.max(1, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
-                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontStyle: 'italic', color: '#ff3b3b', flex: 1, textAlign: 'center' }}>{scandalAmount}</span>
+                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: '#ff3b3b', flex: 1, textAlign: 'center' }}>{scandalAmount}</span>
                     <button onClick={() => setScandalAmount(a => a + 1)} className="btn-ghost" style={{ padding: '4px 10px' }}>+</button>
                   </div>
                 </div>
