@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import QRCode from 'qrcode'
+import PlanetOrb from '@/components/PlanetOrb'
 
 interface Country {
   id: string
@@ -81,17 +82,17 @@ const PHASE_CLASS: Record<string, string> = {
   DEBRIEF: 'phase-debrief',
 }
 const PHASE_LABELS: Record<string, string> = {
-  TRADING: '⚡ TRADING PHASE',
-  PROMISE_CHECK: '📋 PROMISE CHECK',
-  SCANDAL: '☠️ PIRACY RAID',
-  YEAR_END: '📅 YEAR END',
-  DEBRIEF: '📡 DEBRIEF',
+  TRADING: 'Trading Phase',
+  PROMISE_CHECK: 'Pact Check',
+  SCANDAL: 'Escalation',
+  YEAR_END: 'Chapter End',
+  DEBRIEF: 'Debrief',
 }
 const RES_LABELS: Record<string, string> = {
-  food: 'Energy', wealth: 'Population', environment: 'Oxygen', kushBalls: 'Rockets'
+  food: 'Energy', wealth: 'Crew', environment: 'Oxygen', kushBalls: 'Operatives'
 }
 const RES_ICONS: Record<string, string> = {
-  food: '⚡', wealth: '👥', environment: '💨', kushBalls: '🚀'
+  food: '⚡', wealth: '◉', environment: '○', kushBalls: '◈'
 }
 
 function resolveColor(c: string) { return c }
@@ -109,95 +110,111 @@ function getPromiseDots(country: Country, checks: PromiseCheck[]) {
   })
 }
 
-function PlanetSphereDetails({ name }: { name: string }) {
-  switch (name) {
-    case 'Ignis Prime':
-      return <>
-        <div style={{ position:'absolute', top:'28%', left:'22%', width:7, height:7, borderRadius:'50%', background:'rgba(0,0,0,0.4)' }} />
-        <div style={{ position:'absolute', top:'55%', left:'55%', width:5, height:5, borderRadius:'50%', background:'rgba(0,0,0,0.35)' }} />
-        <div style={{ position:'absolute', top:'40%', left:0, right:0, height:6, background:'linear-gradient(90deg,transparent,rgba(255,160,50,0.45),transparent)' }} />
-      </>
-    case 'Aqualis':
-      return <>
-        <div style={{ position:'absolute', top:'20%', left:'10%', width:18, height:18, borderRadius:'50%', border:'2px solid rgba(255,255,255,0.25)' }} />
-        <div style={{ position:'absolute', top:'35%', left:0, right:0, height:5, background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)' }} />
-      </>
-    case 'Verdania':
-      return <>
-        <div style={{ position:'absolute', top:'20%', left:'30%', width:14, height:10, borderRadius:'40%', background:'rgba(0,100,30,0.55)' }} />
-        <div style={{ position:'absolute', top:'55%', left:'15%', width:10, height:8, borderRadius:'40%', background:'rgba(0,100,30,0.45)' }} />
-      </>
-    case 'Solara':
-      return <>
-        <div style={{ position:'absolute', top:'30%', left:'40%', width:8, height:8, borderRadius:'50%', background:'rgba(180,100,0,0.4)' }} />
-        <div style={{ position:'absolute', top:'55%', left:'20%', width:5, height:5, borderRadius:'50%', background:'rgba(180,100,0,0.3)' }} />
-      </>
-    case 'Rosara':
-      return <>
-        <div style={{ position:'absolute', top:'15%', left:'50%', width:1, height:25, background:'rgba(255,255,255,0.25)', transform:'rotate(30deg)' }} />
-        <div style={{ position:'absolute', top:'15%', left:'60%', width:1, height:20, background:'rgba(255,255,255,0.18)', transform:'rotate(-20deg)' }} />
-        <div style={{ position:'absolute', top:'55%', left:'25%', width:1, height:18, background:'rgba(255,255,255,0.2)', transform:'rotate(45deg)' }} />
-      </>
-    case 'Lumenor':
-      return (
-        <div style={{ position:'absolute', top:0, left:'42%', width:10, height:'100%', background:'linear-gradient(180deg,rgba(255,255,255,0.3),rgba(255,255,255,0.05),rgba(255,255,255,0.2))', transform:'rotate(10deg)' }} />
-      )
-    case 'Dustara':
-      return <>
-        <div style={{ position:'absolute', top:'30%', left:0, right:0, height:4, background:'rgba(180,90,0,0.4)' }} />
-        <div style={{ position:'absolute', top:'55%', left:0, right:0, height:3, background:'rgba(180,90,0,0.3)' }} />
-      </>
-    case 'Glacius':
-      return <>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:11, background:'linear-gradient(180deg,rgba(255,255,255,0.7),rgba(255,255,255,0.1))', borderRadius:'50% 50% 0 0' }} />
-        <div style={{ position:'absolute', top:'28%', left:'30%', width:1, height:14, background:'rgba(255,255,255,0.3)', transform:'rotate(15deg)' }} />
-        <div style={{ position:'absolute', top:'35%', left:'55%', width:1, height:10, background:'rgba(255,255,255,0.25)', transform:'rotate(-25deg)' }} />
-      </>
-    case 'Ferron':
-      return <div style={{ position:'absolute', inset:0, backgroundImage:'repeating-linear-gradient(0deg,transparent,transparent 9px,rgba(255,255,255,0.07) 9px,rgba(255,255,255,0.07) 10px),repeating-linear-gradient(90deg,transparent,transparent 9px,rgba(255,255,255,0.07) 9px,rgba(255,255,255,0.07) 10px)' }} />
-    case 'Voidara':
-      return <>
-        <div style={{ position:'absolute', top:0, left:'40%', width:6, height:'100%', background:'linear-gradient(90deg,transparent,rgba(0,0,0,0.5),transparent)', transform:'rotate(20deg)' }} />
-        <div style={{ position:'absolute', top:0, left:'42%', width:2, height:'100%', background:'linear-gradient(180deg,transparent,rgba(224,64,251,0.6),transparent)', transform:'rotate(20deg)' }} />
-      </>
-    default:
-      return null
-  }
+// Constellation layout — hand-composed positions for 300×260 box
+const CONSTELLATION_LAYOUT: Record<string, { x: number; y: number; size: number }> = {
+  'Ignis Prime': { x: 52,  y: 64,  size: 30 },
+  'Solara':      { x: 132, y: 36,  size: 24 },
+  'Glacius':     { x: 224, y: 58,  size: 28 },
+  'Rosara':      { x: 268, y: 138, size: 22 },
+  'Verdania':    { x: 198, y: 116, size: 26 },
+  'Lumenor':     { x: 132, y: 138, size: 38 },
+  'Dustara':     { x: 38,  y: 144, size: 22 },
+  'Aqualis':     { x: 78,  y: 210, size: 32 },
+  'Voidara':     { x: 178, y: 218, size: 26 },
+  'Ferron':      { x: 252, y: 208, size: 22 },
 }
 
-function PlanetSphere({ name, color, size = 38 }: { name: string; color: string; size?: number }) {
-  const isDustara = name === 'Dustara'
-  const isSolara = name === 'Solara'
-  const ringW = size + Math.round(size * 0.55)
-  const offset = Math.round((ringW - size) / 2)
+const GOLD = '#e8c87a'
+const FAINT = 'rgba(244,239,229,0.32)'
 
-  const inner = (
-    <div style={{
-      position: 'relative',
-      width: size,
-      height: size,
-      borderRadius: '50%',
-      overflow: 'hidden',
-      background: `radial-gradient(circle at 35% 30%, ${color}ee, ${color}55)`,
-      boxShadow: isSolara
-        ? `0 0 22px ${color}, 0 0 44px ${color}55, 0 0 6px ${color}88`
-        : `0 0 16px ${color}cc, 0 0 4px ${color}55`,
-    }}>
-      <PlanetSphereDetails name={name} />
+function EditorialConstellation({ countries, audit = false, reclaimedSet = new Set<string>() }: {
+  countries: Array<{ id: string; name: string; color: string }>
+  audit?: boolean
+  reclaimedSet?: Set<string>
+}) {
+  const orbRefs = useRef<(HTMLDivElement | null)[]>([])
+  const arcRef = useRef<SVGPathElement | null>(null)
+
+  useEffect(() => {
+    let raf: number
+    const start = performance.now()
+    const phases = countries.map((_, i) => i * 0.7)
+    const tick = (now: number) => {
+      const t = (now - start) / 1000
+      countries.forEach((_, i) => {
+        const node = orbRefs.current[i]
+        if (!node) return
+        const dx = Math.cos(t * 0.18 + phases[i]) * 1.4
+        const dy = Math.sin(t * 0.22 + phases[i] * 1.3) * 1.4
+        node.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`
+      })
+      if (arcRef.current) {
+        const breathe = 0.32 + 0.08 * Math.sin(t * 0.4)
+        arcRef.current.setAttribute('stroke-opacity', breathe.toFixed(3))
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [countries])
+
+  const W = 300, H = 260
+  const caption = audit ? `◈ PACTS KEPT · ${reclaimedSet.size}/10` : null
+
+  return (
+    <div style={{ position: 'relative', width: W, height: H, flexShrink: 0 }}>
+      {/* Star-chart SVG */}
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {[[22,24],[68,18],[256,26],[292,80],[12,100],[108,78],[168,70],[240,92],[16,188],[112,248],
+          [228,252],[294,200],[54,248],[196,254],[276,158],[148,192],[86,110],[220,30],[44,114],[262,124]
+        ].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={i % 4 === 0 ? 0.9 : 0.5} fill="#f4efe5" opacity={0.18 + (i % 5) * 0.05} />
+        ))}
+        <path ref={arcRef}
+          d={`M -10 ${H - 60} Q ${W * 0.5} ${H - 200} ${W + 10} 50`}
+          fill="none" stroke={GOLD} strokeOpacity="0.32" strokeWidth="0.8" />
+        <path d={`M -10 60 Q ${W * 0.5} ${H + 60} ${W + 10} ${H - 30}`}
+          fill="none" stroke="#f4efe5" strokeOpacity="0.06" strokeWidth="0.6" />
+      </svg>
+
+      {/* Planet orbs */}
+      {countries.map((c, i) => {
+        const layout = CONSTELLATION_LAYOUT[c.name]
+        if (!layout) return null
+        const lit = !audit || reclaimedSet.has(c.id)
+        return (
+          <div key={c.id} ref={el => { orbRefs.current[i] = el }} style={{
+            position: 'absolute',
+            left: layout.x - layout.size / 2,
+            top: layout.y - layout.size / 2,
+            width: layout.size, height: layout.size,
+            transition: 'filter 0.6s ease, opacity 0.6s ease',
+            filter: lit ? 'none' : 'saturate(0.18) brightness(0.55)',
+            opacity: lit ? 1 : 0.6,
+            willChange: 'transform',
+          }}>
+            <PlanetOrb name={c.name} color={c.color} size={layout.size} glow={lit} />
+            {audit && lit && (
+              <div style={{
+                position: 'absolute', top: -2, right: -2, width: 4, height: 4,
+                borderRadius: '50%', background: GOLD, boxShadow: `0 0 6px ${GOLD}`,
+              }} />
+            )}
+          </div>
+        )
+      })}
+
+      {/* Corner labels */}
+      <div style={{ position:'absolute', top:0, left:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:FAINT }}>SECTOR · 07</div>
+      <div style={{ position:'absolute', top:0, right:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:FAINT }}>HOLLOW RING</div>
+      {caption && (
+        <div style={{ position:'absolute', bottom:0, left:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:GOLD, opacity:0.75 }}>
+          {caption}
+        </div>
+      )}
+      <div style={{ position:'absolute', bottom:0, right:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:FAINT }}>PLATE · II</div>
     </div>
   )
-
-  if (isDustara) {
-    return (
-      <div style={{ position: 'relative', width: ringW, height: size, flexShrink: 0 }}>
-        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotateX(70deg)', width: ringW, height: ringW, borderRadius:'50%', border:'3px solid rgba(255,180,60,0.4)', zIndex: 0, pointerEvents:'none' }} />
-        <div style={{ position:'absolute', top:0, left: offset, zIndex: 1 }}>{inner}</div>
-        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotateX(70deg)', width: ringW, height: ringW / 2, borderRadius:'50% 50% 0 0', borderTop:'3px solid rgba(255,180,60,0.2)', zIndex: 2, pointerEvents:'none' }} />
-      </div>
-    )
-  }
-
-  return <div style={{ position: 'relative', flexShrink: 0 }}>{inner}</div>
 }
 
 export default function FacilitatorDashboard() {
@@ -364,7 +381,7 @@ export default function FacilitatorDashboard() {
         <div className="fixed top-0 left-0 right-0 z-50 anim-slide-down"
           style={{ background: 'rgba(255,59,59,0.15)', borderBottom: '1px solid var(--red-raid)', backdropFilter: 'blur(8px)', padding: '0.75rem', textAlign: 'center' }}>
           <span className="font-display text-sm tracking-widest" style={{ color: 'var(--red-raid)', textShadow: 'var(--red-glow)' }}>
-            ⚠️ PIRACY RAID LAUNCHED — {raidAlert.attacker} → {raidAlert.defender}
+            ◤ ESCALATION LAUNCHED — {raidAlert.attacker} vs {raidAlert.defender}
           </span>
         </div>
       )}
@@ -376,7 +393,7 @@ export default function FacilitatorDashboard() {
           <div className="sp-card sp-modal-red text-center p-8 w-full mx-4" style={{ maxWidth: '32rem' }}>
             {raidResolving && !raidOverlay ? (
               <>
-                <p className="font-display text-xs tracking-widest text-slate-400 mb-6">NAVIGATION COMPUTER CALCULATING...</p>
+                <p className="font-display text-xs tracking-widest text-slate-400 mb-6">RESOLVING ESCALATION...</p>
                 <div className="flex items-center justify-center mb-6">
                   <div className="relative w-24 h-24">
                     <div className="absolute inset-0 rounded-full border-2 anim-spin" style={{ borderColor: 'var(--red-raid)', borderTopColor: 'transparent' }} />
@@ -384,7 +401,7 @@ export default function FacilitatorDashboard() {
                     <div className="absolute inset-0 flex items-center justify-center font-display text-xs" style={{ color: 'var(--red-raid)' }}>+</div>
                   </div>
                 </div>
-                <p className="font-display text-sm tracking-widest" style={{ color: 'var(--red-raid)' }}>RESOLVING RAID...</p>
+                <p className="font-display text-sm tracking-widest" style={{ color: 'var(--red-raid)' }}>ESCALATION IN PROGRESS...</p>
               </>
             ) : raidOverlay ? (
               <div className="anim-fade-in">
@@ -418,7 +435,7 @@ export default function FacilitatorDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-center">
-              <p className="font-display text-xs text-slate-500 tracking-widest">YEAR</p>
+              <p className="font-display text-xs text-slate-500 tracking-widest">CHAPTER</p>
               <p className="font-display text-3xl font-black glow-cyan">{session.year}<span className="text-lg text-slate-500"> /5</span></p>
             </div>
             <div style={{ width: '1px', height: '48px', background: 'var(--divider)' }} />
@@ -452,7 +469,7 @@ export default function FacilitatorDashboard() {
             <button onClick={() => phaseAction('PAUSE_TIMER')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>⏸ PAUSE</button>
             <div style={{ flex: 1 }} />
             <button onClick={() => phaseAction('NEXT_PHASE')} className="btn-cyan" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT PHASE →</button>
-            <button onClick={() => phaseAction('NEXT_YEAR')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT YEAR ⏭</button>
+            <button onClick={() => phaseAction('NEXT_YEAR')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT CHAPTER ⏭</button>
           </div>
         </div>
 
@@ -465,7 +482,7 @@ export default function FacilitatorDashboard() {
             {/* Promise Check */}
             {session.phase === 'PROMISE_CHECK' && promiseChecks.length > 0 && (
               <div className="sp-card p-4" style={{ flexShrink:0 }}>
-                <p className="font-display text-xs tracking-widest text-amber-400 mb-3">📋 PROMISE CHECK — YEAR {session.year}</p>
+                <p className="font-display text-xs tracking-widest text-amber-400 mb-3">◈ PACT CHECK — CHAPTER {session.year}</p>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                   {Array.from(new Set(promiseChecks.map(c => c.country.name))).map(name => {
                     const checks = promiseChecks.filter(c => c.country.name === name)
@@ -489,7 +506,7 @@ export default function FacilitatorDashboard() {
             {/* Active Raids */}
             {activeRaids.length > 0 && (
               <div className="sp-card p-4" style={{ borderColor: 'rgba(255,59,59,0.3)', flexShrink:0 }}>
-                <p className="font-display text-xs tracking-widest mb-3" style={{ color: 'var(--red-raid)' }}>☠️ ACTIVE PIRACY RAIDS</p>
+                <p className="font-display text-xs tracking-widest mb-3" style={{ color: 'var(--red-raid)' }}>◤ ACTIVE ESCALATIONS</p>
                 <div className="space-y-2">
                   {activeRaids.map(s => (
                     <div key={s.id} className="sp-card p-3 flex items-center justify-between"
@@ -509,7 +526,7 @@ export default function FacilitatorDashboard() {
                         </div>
                       </div>
                       <button onClick={() => resolveScandal(s.id)} className="btn-red ml-3" style={{ whiteSpace: 'nowrap' }}>
-                        🎲 RESOLVE RAID
+                        ◈ RESOLVE
                       </button>
                     </div>
                   ))}
@@ -571,7 +588,7 @@ export default function FacilitatorDashboard() {
                       position: 'relative',
                       overflow: 'hidden',
                     }}>
-                      <PlanetSphere name={c.name} color={col} size={32} />
+                      <PlanetOrb name={c.name} color={col} size={32} glow={false} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p className="font-display font-bold tracking-wide mb-1" style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: col, textShadow: `0 0 8px ${col}60` }}>
                           {c.name}
@@ -621,8 +638,21 @@ export default function FacilitatorDashboard() {
             </div>
           </div>
 
-          {/* ── Right: Trade Feed + QR ── */}
+          {/* ── Right: Constellation + QR + Trade Feed ── */}
           <div style={{ display:'flex', flexDirection:'column', gap:8, minHeight:0, overflow:'hidden' }}>
+            {/* Editorial Constellation */}
+            <div className="sp-card p-3" style={{ display:'flex', flexDirection:'column', alignItems:'center', overflow:'hidden' }}>
+              <EditorialConstellation
+                countries={session.countries.map(c => ({ id: c.id, name: c.name, color: c.color }))}
+                audit={session.phase === 'PROMISE_CHECK'}
+                reclaimedSet={new Set(
+                  session.phase === 'PROMISE_CHECK'
+                    ? promiseChecks.filter(pc => pc.passed).map(pc => pc.countryId)
+                    : session.countries.map(c => c.id)
+                )}
+              />
+            </div>
+
             {/* QR Code */}
             <div className="sp-card p-4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               {qrUrl && <img src={qrUrl} alt="Join QR" className="w-32 h-32 rounded-lg mb-2" style={{ display: 'block' }} />}
