@@ -165,5 +165,5 @@ export async function POST(req: Request) {
     scandal: updatedScandal,
   })
 
-  return NextResponse.json({ beat: updatedScandal!.beat })
+  return NextResponse.json({ beat: updatedScandal!.beat, scandal: updatedScandal })
 }

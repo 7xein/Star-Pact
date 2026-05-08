@@ -183,23 +183,47 @@ export default function PlayPage() {
     if (me) setMyCountry(me)
   }, [])
 
-  // Beat advance timer — all clients try; server is idempotent
+  // Beat advance: fire exactly when timer expires, with 1s fallback poll
   useEffect(() => {
     if (!activeScandal?.beatEndsAt || activeScandal.beat === 'CLOSED') return
-    const check = async () => {
-      if (advancingBeatRef.current) return
-      const diff = new Date(activeScandal.beatEndsAt!).getTime() - Date.now()
-      if (diff > 0) return
+    let cancelled = false
+    let timerId: ReturnType<typeof setTimeout> | null = null
+
+    const doAdvance = async () => {
+      if (cancelled || advancingBeatRef.current) return
       advancingBeatRef.current = true
       try {
-        await fetch('/api/scandal/advance-beat', {
+        const res = await fetch('/api/scandal/advance-beat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scandalId: activeScandal.id }),
         })
-      } catch { advancingBeatRef.current = false }
+        if (res.ok) {
+          const data = await res.json()
+          // Immediately apply the new beat to local state
+          if (data.scandal) {
+            setActiveScandal(prev => prev?.id === activeScandal.id ? data.scandal : prev)
+          }
+        }
+      } catch { /* ignore */ }
+      advancingBeatRef.current = false
     }
-    const id = setInterval(check, 3000)
-    return () => clearInterval(id)
+
+    const diff = new Date(activeScandal.beatEndsAt!).getTime() - Date.now()
+    if (diff <= 0) {
+      // Already expired — advance immediately
+      doAdvance()
+    } else {
+      // Schedule to fire right when timer expires
+      timerId = setTimeout(doAdvance, diff + 100) // +100ms buffer for clock skew
+    }
+
+    // Safety fallback: poll every 1s in case the timeout missed
+    const fallbackId = setInterval(() => {
+      const remaining = new Date(activeScandal.beatEndsAt!).getTime() - Date.now()
+      if (remaining <= 0) doAdvance()
+    }, 1000)
+
+    return () => { cancelled = true; if (timerId) clearTimeout(timerId); clearInterval(fallbackId) }
   }, [activeScandal?.id, activeScandal?.beatEndsAt, activeScandal?.beat])
 
   const updateMyCountry = (me: Country) => {
@@ -248,6 +272,14 @@ export default function PlayPage() {
         setActiveScandals(prev => [...prev, data.scandal])
         setActiveScandal(data.scandal as ScandalFull)
         showNotif('Escalation in progress', 'raid')
+      }
+      if (data.type === 'SCANDAL_ALLY') {
+        setActiveScandal(prev => {
+          if (!prev || prev.id !== data.scandalId) return prev
+          const already = prev.alliances?.some((a: { countryId: string }) => a.countryId === data.alliance.countryId)
+          if (already) return prev
+          return { ...prev, alliances: [...(prev.alliances ?? []), data.alliance] }
+        })
       }
       if (data.type === 'SCANDAL_BEAT_ADVANCED') {
         const updated = data.scandal as ScandalFull
@@ -401,6 +433,22 @@ export default function PlayPage() {
     if (!res.ok) {
       const err = await res.json()
       showNotif(err.error, 'error')
+    } else {
+      const data = await res.json()
+      // Optimistically update local rocket count and volley list
+      setMyCountry(prev => prev ? { ...prev, kushBalls: prev.kushBalls - 1 } : prev)
+      setActiveScandal(prev => {
+        if (!prev || prev.id !== activeScandal.id) return prev
+        return { ...prev, volleys: [...(prev.volleys ?? []), { countryId: cid, round: data.round, side: data.side }] }
+      })
+      // If auto-advanced, refetch scandal immediately to get new beat state
+      if (data.autoAdvanced) {
+        const scanRes = await fetch(`/api/scandal?sessionId=${sessionIdRef.current}`)
+        if (scanRes.ok) {
+          const scandals = await scanRes.json()
+          if (scandals.length > 0) setActiveScandal(scandals[0])
+        }
+      }
     }
   }
 

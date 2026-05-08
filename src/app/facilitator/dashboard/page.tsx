@@ -448,18 +448,34 @@ export default function FacilitatorDashboard() {
     return () => { es.close(); clearInterval(poll) }
   }, [loadSession, loadPromiseChecks, loadDebriefResponses])
 
-  // Beat advance
+  // Beat advance: fire right when timer expires + 1s fallback
   useEffect(() => {
     if (!tvScandal?.beatEndsAt || tvScandal.beat === 'CLOSED') return
-    const check = async () => {
-      if (advancingBeatRef.current) return
-      if (new Date(tvScandal.beatEndsAt!).getTime() - Date.now() > 0) return
+    let cancelled = false
+    let timerId: ReturnType<typeof setTimeout> | null = null
+
+    const doAdvance = async () => {
+      if (cancelled || advancingBeatRef.current) return
       advancingBeatRef.current = true
-      try { await fetch('/api/scandal/advance-beat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scandalId: tvScandal.id }) }) }
-      catch { advancingBeatRef.current = false }
+      try {
+        const res = await fetch('/api/scandal/advance-beat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scandalId: tvScandal.id }) })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.scandal) setTvScandal(data.scandal)
+        }
+      } catch { /* ignore */ }
+      advancingBeatRef.current = false
     }
-    const id = setInterval(check, 300)
-    return () => clearInterval(id)
+
+    const diff = new Date(tvScandal.beatEndsAt!).getTime() - Date.now()
+    if (diff <= 0) { doAdvance() }
+    else { timerId = setTimeout(doAdvance, diff + 100) }
+
+    const fallbackId = setInterval(() => {
+      if (new Date(tvScandal.beatEndsAt!).getTime() - Date.now() <= 0) doAdvance()
+    }, 1000)
+
+    return () => { cancelled = true; if (timerId) clearTimeout(timerId); clearInterval(fallbackId) }
   }, [tvScandal?.id, tvScandal?.beatEndsAt, tvScandal?.beat])
 
   const phaseAction = async (action: string, extra?: object) => {
