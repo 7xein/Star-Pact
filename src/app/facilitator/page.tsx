@@ -28,9 +28,17 @@ export default function FacilitatorLogin() {
   }
 
   const handleExisting = async () => {
-    if (password !== 'admin123') { setError('Invalid password'); return }
+    if (!password) { setError('Enter access code'); return }
+    setLoading(true)
+    setError('')
+    // Validate password server-side
+    const valRes = await fetch('/api/session/validate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    })
+    if (!valRes.ok) { setError('Invalid access code'); setLoading(false); return }
     const res = await fetch('/api/session')
-    if (!res.ok) { setError('No existing session'); return }
+    if (!res.ok) { setError('No existing session'); setLoading(false); return }
     const session = await res.json()
     localStorage.setItem('sessionId', session.id)
     router.push('/facilitator/dashboard')

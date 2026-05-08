@@ -19,7 +19,8 @@ const B_SERIF = '"Fraunces", "Source Serif 4", "Cormorant Garamond", Georgia, se
 const B_SANS  = '"Inter Tight", "Inter", system-ui, sans-serif'
 const B_MONO  = '"JetBrains Mono", ui-monospace, monospace'
 
-const RES_GLYPH: Record<string, string> = { energy: '⚡', oxygen: '○', crew: '◉', smugglers: '◈' }
+const RES_GLYPH: Record<string, string> = { food: '⚡', environment: '○', wealth: '◉', kushBalls: '◈', energy: '⚡', oxygen: '○', crew: '◉' }
+const RES_LABELS_DASH: Record<string, string> = { food: 'Energy', wealth: 'Crew', environment: 'Oxygen', kushBalls: 'Operatives' }
 
 const PLANET_MOTTOS: Record<string, string> = {
   ignis:    'We burned first. We will burn last.',
@@ -58,13 +59,6 @@ const TRADE_STATUS: Record<string, { label: string; color: string }> = {
   raided:  { label: 'RAIDED',  color: B_BAD  },
 }
 
-const MOCK_TRADES: TradeEntry[] = [
-  { tStr:'14:08', from:'aqualis', to:'verdania', give:{n:4,r:'crew'},   take:{n:3,r:'oxygen'}, status:'sealed'  },
-  { tStr:'14:06', from:'lumenor', to:'ignis',    give:{n:6,r:'energy'}, take:{n:2,r:'crew'},   status:'sealed'  },
-  { tStr:'14:05', from:'rosara',  to:'glacius',  give:{n:3,r:'oxygen'}, take:{n:1,r:'energy'}, status:'pending' },
-  { tStr:'14:03', from:'voidara', to:'rosara',   give:{n:2,r:'oxygen'}, take:{n:5,r:'crew'},   status:'broken'  },
-  { tStr:'14:01', from:'ferron',  to:'solara',   give:{n:5,r:'energy'}, take:{n:4,r:'oxygen'}, status:'sealed'  },
-]
 
 // ── Planet color lookup (for trade log etc) ──
 const PLANET_COLORS: Record<string, string> = {
@@ -287,7 +281,7 @@ export default function FacilitatorDashboard() {
   const [raidOverlay, setRaidOverlay]     = useState<RaidResult | null>(null)
   const [raidResolving, setRaidResolving] = useState<string | null>(null)
   const [tvScandal, setTvScandal]         = useState<ScandalFull | null>(null)
-  const [recentTrades, setRecentTrades]   = useState<TradeEntry[]>(MOCK_TRADES)
+  const [recentTrades, setRecentTrades]   = useState<TradeEntry[]>([])
   const [qrUrl, setQrUrl]                 = useState('')
   const [qrOpen, setQrOpen]               = useState(false)
 
@@ -677,6 +671,13 @@ export default function FacilitatorDashboard() {
                 <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:B_GOLD }}>● LIVE</div>
               </div>
               <div style={{ flex:1, minHeight:0, overflow:'hidden', borderTop:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column' }}>
+                {recentTrades.length === 0 && (
+                  <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.25em', color:B_FAINT, textAlign:'center' }}>
+                      NO TRADES YET<br/><span style={{ fontSize:9, opacity:0.6 }}>WAITING FOR TRANSMISSIONS…</span>
+                    </div>
+                  </div>
+                )}
                 {recentTrades.slice(0, 5).map((e, i) => {
                   const st = TRADE_STATUS[e.status] || TRADE_STATUS.pending
                   const fromColor = PLANET_COLORS[e.from] || '#888'
@@ -741,7 +742,7 @@ export default function FacilitatorDashboard() {
                           <div style={{ minWidth:0, flex:1 }}>
                             <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:8 }}>
                               <div style={{ fontFamily:B_SERIF, fontSize:19, fontWeight:400, letterSpacing:'-0.01em' }}>
-                                {c.name.charAt(0)+c.name.slice(1).toLowerCase()}
+                                {c.name}
                               </div>
                               <div style={{ fontFamily:B_MONO, fontSize:11, letterSpacing:'0.1em', color:barColor }}>
                                 {met}/{due} KEPT
@@ -771,7 +772,7 @@ export default function FacilitatorDashboard() {
                     <div style={{ fontFamily:B_SERIF, fontSize:22, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic', marginTop:2 }}>The standings.</div>
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(3,56px)', fontFamily:B_MONO, fontSize:11, letterSpacing:'0.2em', color:B_FAINT, paddingBottom:4, textAlign:'right' }}>
-                    <span>NRG</span><span>OXG</span><span>CRW</span>
+                    <span>⚡ NRG</span><span>○ OXG</span><span>◉ CRW</span>
                   </div>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
@@ -787,7 +788,7 @@ export default function FacilitatorDashboard() {
                           <PlanetOrb name={c.name} color={c.color} size={36}/>
                           <div style={{ minWidth:0 }}>
                             <div style={{ fontFamily:B_SERIF, fontSize:19, fontWeight:400, letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                              {c.name.charAt(0)+c.name.slice(1).toLowerCase()}
+                              {c.name}
                             </div>
                             <div style={{ fontFamily:B_SERIF, fontSize:12, color:B_FAINT, fontStyle:'italic', marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                               {PLANET_MOTTOS[pid] || '—'}
@@ -821,11 +822,11 @@ export default function FacilitatorDashboard() {
               window.location.reload()
             } else { alert('Failed to reset session') }
           }}
-            style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'4px 12px', cursor:'pointer' }}>
+            style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'8px 18px', cursor:'pointer', transition:'border-color 0.2s, color 0.2s' }}>
             ↺ RESET SESSION
           </button>
           <button onClick={() => setQrOpen(o => !o)}
-            style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'4px 12px', cursor:'pointer' }}>
+            style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'8px 18px', cursor:'pointer', transition:'border-color 0.2s, color 0.2s' }}>
             {qrOpen ? 'HIDE QR' : 'SCAN TO JOIN ▾'}
           </button>
         </div>

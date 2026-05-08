@@ -15,10 +15,12 @@ const COUNTRIES = [
   { name: 'Voidara', color: '#94a3b8', motto: "If it's not dramatic, it's not worth doing.", story: 'Voidara treats every moment as a performance. Their diplomats deliver statements as theatrical productions, their warnings arrive as spoken-word art, and some of their most critical messages were initially mistaken for entertainment.', famousFor: 'Unforgettable performances and occasionally misunderstood warnings — their evacuation announcement won three arts awards', food: 6, wealth: 1, environment: 4, kushBalls: 5, relations: { rightOn: ['Ignis Prime', 'Ferron', 'Rosara', 'Verdania', 'Glacius'], writeOff: ['Solara', 'Lumenor', 'Dustara', 'Aqualis'] }, promises: [{ resource: 'food', target: 3, byYear: 5 }, { resource: 'wealth', target: 2, byYear: 5 }, { resource: 'environment', target: 7, byYear: 4 }] },
 ]
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    if (body.password !== 'admin123') {
+    if (body.password !== ADMIN_PASSWORD) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
     }
 

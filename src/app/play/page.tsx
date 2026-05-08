@@ -146,6 +146,8 @@ export default function PlayPage() {
 
   // Escalation modal
   const [showEscalationModal, setShowEscalationModal] = useState(false)
+  const [submittingTrade, setSubmittingTrade] = useState(false)
+  const [submittingEscalation, setSubmittingEscalation] = useState(false)
   const [scandalTarget, setScandalTarget] = useState('')
   const [scandalResource, setScandalResource] = useState('food')
   const [scandalAmount, setScandalAmount] = useState(1)
@@ -382,18 +384,21 @@ export default function PlayPage() {
 
   const submitTrade = async () => {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
-    if (!sid || !cid || !tradeTarget) return
-    const res = await fetch('/api/trade', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid, senderId: cid, receiverId: tradeTarget, offerResource, offerAmount, requestResource, requestAmount }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      showNotif(err.error, 'error')
-    } else {
-      showNotif('Trade offer transmitted.')
-      setShowTradeModal(false)
-    }
+    if (!sid || !cid || !tradeTarget || submittingTrade) return
+    setSubmittingTrade(true)
+    try {
+      const res = await fetch('/api/trade', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, senderId: cid, receiverId: tradeTarget, offerResource, offerAmount, requestResource, requestAmount }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        showNotif(err.error, 'error')
+      } else {
+        showNotif('Trade offer transmitted.')
+        setShowTradeModal(false)
+      }
+    } finally { setSubmittingTrade(false) }
   }
 
   const respondTrade = async (tradeId: string, accept: boolean) => {
@@ -407,20 +412,22 @@ export default function PlayPage() {
 
   const submitEscalation = async () => {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
-    if (!sid || !cid || !scandalTarget) return
-    // Auto-calculate amount: all of the target's selected resource
-    const target = session?.countries.find(c => c.id === scandalTarget)
-    const amount = target ? (target[scandalResource as keyof Country] as number) : 1
-    const res = await fetch('/api/scandal', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid, attackerId: cid, defenderId: scandalTarget, resource: scandalResource, amount }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      showNotif(err.error, 'error')
-    } else {
-      setShowEscalationModal(false)
-    }
+    if (!sid || !cid || !scandalTarget || submittingEscalation) return
+    setSubmittingEscalation(true)
+    try {
+      const target = session?.countries.find(c => c.id === scandalTarget)
+      const amount = target ? (target[scandalResource as keyof Country] as number) : 1
+      const res = await fetch('/api/scandal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, attackerId: cid, defenderId: scandalTarget, resource: scandalResource, amount }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        showNotif(err.error, 'error')
+      } else {
+        setShowEscalationModal(false)
+      }
+    } finally { setSubmittingEscalation(false) }
   }
 
   const joinScandal = async (scandalId: string, side: 'ATTACKER' | 'DEFENDER') => {
@@ -547,14 +554,14 @@ export default function PlayPage() {
           position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
           zIndex: 50, width: 'calc(100% - 32px)', maxWidth: '30rem',
           padding: '10px 16px', textAlign: 'center',
-          background: notifType === 'raid' ? 'rgba(255,59,59,0.15)' : 'rgba(232,200,122,0.1)',
-          border: `1px solid ${notifType === 'raid' ? 'rgba(255,59,59,0.4)' : B_LINE}`,
+          background: notifType === 'raid' || notifType === 'error' ? 'rgba(255,59,59,0.15)' : 'rgba(232,200,122,0.1)',
+          border: `1px solid ${notifType === 'raid' || notifType === 'error' ? 'rgba(255,59,59,0.4)' : B_LINE}`,
           backdropFilter: 'blur(8px)',
           animation: 'slide-down 0.3s ease-out',
         }}>
           <span style={{
             fontFamily: B_MONO, fontSize: 12, letterSpacing: '0.15em',
-            color: notifType === 'raid' ? '#ff3b3b' : B_GOLD,
+            color: notifType === 'raid' || notifType === 'error' ? '#ff3b3b' : B_GOLD,
           }}>
             {notification.toUpperCase()}
           </span>
@@ -623,14 +630,14 @@ export default function PlayPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0', paddingBottom: '144px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
 
         {/* ── IDENTITY ── */}
-        {tab === 'identity' && (
+        {session.phase !== 'DEBRIEF' && tab === 'identity' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
             <div style={{ marginBottom: 20 }}>
               <PlanetOrb name={myCountry.name} color={myColor} size={150} glow pulse />
             </div>
 
             <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 0.95, textAlign: 'center', marginBottom: 10 }}>
-              {myCountry.name.charAt(0) + myCountry.name.slice(1).toLowerCase()}<span style={{ color: B_GOLD }}>.</span>
+              {myCountry.name}<span style={{ color: B_GOLD }}>.</span>
             </div>
             <div style={{ fontFamily: B_SERIF, fontSize: 14, color: B_GOLD, textAlign: 'center', lineHeight: 1.5, marginBottom: 24 }}>
               &ldquo;{myCountry.motto}&rdquo;
@@ -657,7 +664,7 @@ export default function PlayPage() {
         )}
 
         {/* ── RESOURCES ── */}
-        {tab === 'resources' && (
+        {session.phase !== 'DEBRIEF' && tab === 'resources' && (
           <div style={{ width: '100%' }}>
             {RESOURCES.map(r => {
               const val = myCountry[r] as number
@@ -682,22 +689,11 @@ export default function PlayPage() {
               )
             })}
 
-            {session.phase === 'TRADING' && (
-              <button onClick={() => setShowTradeModal(true)} className="btn-cyan w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.8rem', letterSpacing: '0.1em' }}>
-                PROPOSE TRADE
-              </button>
-            )}
-
-            {session.phase === 'SCANDAL' && failedPacts.length > 0 && (
-              <button onClick={() => { setScandalResource(failedPacts[0].resource); setShowEscalationModal(true) }} className="btn-red w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.8rem', letterSpacing: '0.1em', boxShadow: '0 0 10px rgba(255,59,59,0.3)' }}>
-                ◤ LAUNCH ESCALATION
-              </button>
-            )}
           </div>
         )}
 
         {/* ── PACTS ── */}
-        {tab === 'pacts' && (
+        {session.phase !== 'DEBRIEF' && tab === 'pacts' && (
           <div style={{ width: '100%' }}>
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 600, color: B_INK, marginBottom: 4 }}>
@@ -745,7 +741,7 @@ export default function PlayPage() {
         )}
 
         {/* ── ALLIES ── */}
-        {tab === 'allies' && (
+        {session.phase !== 'DEBRIEF' && tab === 'allies' && (
           <div style={{ width: '100%' }}>
             {([
               { key: 'rightOn',  label: 'Warp Lane',  color: '#22c55e' },
@@ -887,23 +883,10 @@ export default function PlayPage() {
             {PHASE_LABELS[session.phase]?.toUpperCase() ?? 'STANDBY'}
           </div>
         )}
-        {session.phase === 'SCANDAL' && (
-          <button onClick={() => setShowEscalationModal(true)} style={{
-            padding: '12px 16px', background: 'transparent',
-            border: `1px solid ${B_LINE}`, color: B_DIM,
-            fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.12em', cursor: 'pointer',
-          }}>
-            STAND ASIDE
-          </button>
-        )}
-        {session.phase === 'TRADING' && (
-          <button onClick={() => setShowEscalationModal(true)} style={{
-            padding: '12px 16px', background: 'transparent',
-            border: `1px solid ${B_LINE}`, color: B_DIM,
-            fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.12em', cursor: 'pointer',
-          }}>
-            RAID
-          </button>
+        {session.phase === 'SCANDAL' && failedPacts.length === 0 && (
+          <div style={{ flex: 1, padding: '12px 0', textAlign: 'center', fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT }}>
+            ESCALATION PHASE · STANDBY
+          </div>
         )}
       </div>
 
@@ -991,8 +974,8 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <button onClick={submitTrade} disabled={!tradeTarget} className="btn-cyan w-full" style={{ padding: '12px 0' }}>
-                TRANSMIT OFFER
+              <button onClick={submitTrade} disabled={!tradeTarget || submittingTrade} className="btn-cyan w-full" style={{ padding: '12px 0' }}>
+                {submittingTrade ? 'TRANSMITTING…' : 'TRANSMIT OFFER'}
               </button>
               <button onClick={() => setShowTradeModal(false)} className="btn-ghost w-full" style={{ padding: '10px 0' }}>
                 CANCEL
@@ -1058,8 +1041,8 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <button onClick={submitEscalation} disabled={!scandalTarget} className="btn-red w-full" style={{ padding: '12px 0' }}>
-                ◤ LAUNCH
+              <button onClick={submitEscalation} disabled={!scandalTarget || submittingEscalation} className="btn-red w-full" style={{ padding: '12px 0' }}>
+                {submittingEscalation ? 'LAUNCHING…' : '◤ LAUNCH'}
               </button>
               <button onClick={() => setShowEscalationModal(false)} className="btn-ghost w-full" style={{ padding: '10px 0' }}>
                 STAND DOWN

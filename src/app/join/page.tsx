@@ -30,6 +30,7 @@ export default function JoinPage() {
   const [session, setSession] = useState<Session | null>(null)
   const [claiming, setClaiming] = useState(false)
   const [playerName, setPlayerName] = useState('')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -81,7 +82,8 @@ export default function JoinPage() {
       })
       if (!res.ok) {
         const err = await res.json()
-        alert(err.error || 'Could not claim planet')
+        setErrorMsg(err.error || 'Could not claim planet')
+        setTimeout(() => setErrorMsg(null), 4000)
         setClaiming(false)
         return
       }
@@ -89,7 +91,8 @@ export default function JoinPage() {
       document.cookie = `sessionId=${session.id}; path=/; max-age=86400`
       router.push('/play')
     } catch {
-      alert('Network error — try again')
+      setErrorMsg('Network error — try again')
+      setTimeout(() => setErrorMsg(null), 4000)
       setClaiming(false)
     }
   }
@@ -120,6 +123,21 @@ export default function JoinPage() {
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
         background: 'radial-gradient(ellipse at 80% 0%, #5b3a8a33 0%, transparent 50%), radial-gradient(ellipse at 0% 100%, #c9885633 0%, transparent 50%)',
       }}/>
+
+      {/* Error notification */}
+      {errorMsg && (
+        <div style={{
+          position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 50, width: 'calc(100% - 32px)', maxWidth: '28rem',
+          padding: '10px 16px', textAlign: 'center',
+          background: 'rgba(255,59,59,0.15)', border: `1px solid rgba(255,59,59,0.4)`,
+          backdropFilter: 'blur(8px)', animation: 'slide-down 0.3s ease-out',
+        }}>
+          <span style={{ fontFamily: B_MONO, fontSize: 12, letterSpacing: '0.15em', color: '#ff3b3b' }}>
+            {errorMsg.toUpperCase()}
+          </span>
+        </div>
+      )}
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 480, margin: '0 auto', padding: '0 0 32px' }}>
 
@@ -215,7 +233,7 @@ export default function JoinPage() {
                     color: taken ? B_FAINT : B_INK,
                     marginBottom: 2,
                   }}>
-                    {c.name.charAt(0) + c.name.slice(1).toLowerCase()}
+                    {c.name}
                   </div>
                   <div style={{
                     fontFamily: B_SERIF,
