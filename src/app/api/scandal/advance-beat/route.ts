@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   if (scandal.beat === 'ALLIANCE') {
     // ALLIANCE → VOLLEY: start the first volley
-    const volleyEndsAt = new Date(now.getTime() + 5000)
+    const volleyEndsAt = new Date(now.getTime() + 10000)
     updatedScandal = await prisma.scandal.update({
       where: { id: scandalId },
       data: { beat: 'VOLLEY', beatEndsAt: volleyEndsAt, currentRound: 1 },
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       // Equal (including both zero — but only repeat if under max rounds) → next volley
       nextRound = scandal.currentRound + 1
       nextBeat = 'VOLLEY'
-      nextBeatEndsAt = new Date(now.getTime() + 5000)
+      nextBeatEndsAt = new Date(now.getTime() + 10000)
     } else if (strikerFires > shielderFires) {
       // Strikers fired more → shielders take the hit → attacker wins
       hitSide = 'SHIELDER'

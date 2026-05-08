@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   if (existing) return NextResponse.json({ error: 'Escalation already in progress' }, { status: 400 })
 
   const now = new Date()
-  const allianceDuration = 10 * 1000
+  const allianceDuration = 20 * 1000
   const beatEndsAt = new Date(now.getTime() + allianceDuration)
 
   const scandal = await prisma.$transaction(async (tx) => {
