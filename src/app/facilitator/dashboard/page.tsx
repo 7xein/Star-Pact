@@ -705,8 +705,8 @@ export default function FacilitatorDashboard() {
 
             {/* Action row */}
             <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => phaseAction('NEXT_PHASE')} style={btnB(true)}>Advance phase</button>
-              <button onClick={() => phaseAction('NEXT_YEAR')} style={btnB(false)}>
+              <button onClick={() => phaseAction('NEXT_PHASE')} style={{ ...btnB(true), flex:1 }}>Advance phase</button>
+              <button onClick={() => phaseAction('NEXT_YEAR')} style={{ ...btnB(false), flex:1 }}>
                 Open chapter {CHAPTER_ROMAN[Math.min(session.year, 4)]}
               </button>
             </div>
