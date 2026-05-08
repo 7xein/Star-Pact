@@ -451,6 +451,13 @@ export default function PlayPage() {
   const relations = JSON.parse(myCountry.relationsData)
   const pacts = JSON.parse(myCountry.promisesData) as Array<{ resource: string; target: number; byYear: number }>
   const otherCountries = session.countries.filter(c => c.id !== myCountry.id)
+
+  // Pacts that are due this year and not yet met (excluding kushBalls/operatives)
+  const failedPacts = pacts.filter(p =>
+    p.resource !== 'kushBalls' &&
+    p.byYear <= session.year &&
+    (myCountry[p.resource as keyof Country] as number) < p.target
+  )
   const pendingTrades = incomingTrades.filter(t => t.status === 'PENDING')
   const openRaids = activeScandals.filter(s => s.status === 'OPEN' && s.attackerId !== myCountry.id && s.defenderId !== myCountry.id)
   const phaseColor = PHASE_COLORS[session.phase] ?? B_FAINT
@@ -625,8 +632,8 @@ export default function PlayPage() {
               </button>
             )}
 
-            {session.phase === 'SCANDAL' && (
-              <button onClick={() => setShowEscalationModal(true)} className="btn-red w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.8rem', letterSpacing: '0.1em', boxShadow: '0 0 10px rgba(255,59,59,0.3)' }}>
+            {session.phase === 'SCANDAL' && failedPacts.length > 0 && (
+              <button onClick={() => { setScandalResource(failedPacts[0].resource); setShowEscalationModal(true) }} className="btn-red w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.8rem', letterSpacing: '0.1em', boxShadow: '0 0 10px rgba(255,59,59,0.3)' }}>
                 ◤ LAUNCH ESCALATION
               </button>
             )}
@@ -809,8 +816,8 @@ export default function PlayPage() {
             Propose a trade
           </button>
         )}
-        {session.phase === 'SCANDAL' && (
-          <button onClick={() => setShowEscalationModal(true)} style={{
+        {session.phase === 'SCANDAL' && failedPacts.length > 0 && (
+          <button onClick={() => { setScandalResource(failedPacts[0].resource); setShowEscalationModal(true) }} style={{
             flex: 1, padding: '12px 0',
             background: '#ff3b3b', border: 'none', color: '#fff',
             fontFamily: B_SERIF, fontSize: 14, fontWeight: 600,
@@ -980,9 +987,13 @@ export default function PlayPage() {
               </div>
 
               <div>
-                <Label color="rgba(255,59,59,0.7)">Resource to seize</Label>
+                <Label color="rgba(255,59,59,0.7)">Failed target to seize</Label>
                 <select value={scandalResource} onChange={e => setScandalResource(e.target.value)} className="sp-input" style={{ marginTop: 6 }}>
-                  {RESOURCES.map(r => <option key={r} value={r}>{RES_LABELS[r]}</option>)}
+                  {failedPacts.map(p => (
+                    <option key={p.resource} value={p.resource}>
+                      {RES_LABELS[p.resource]} (need {p.target}, have {myCountry![p.resource as keyof Country] as number})
+                    </option>
+                  ))}
                 </select>
                 <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.15em', color: B_FAINT, marginTop: 6 }}>
                   ALL of the target's {RES_LABELS[scandalResource]} will be at stake
