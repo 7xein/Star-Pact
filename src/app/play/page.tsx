@@ -306,11 +306,17 @@ export default function PlayPage() {
         if (scanRes.ok) {
           const scandals = await scanRes.json()
           setActiveScandals(scandals)
-          // Update active scandal if one is open
+          // Update active scandal if one is open, clear if none
           if (scandals.length > 0) {
             const current = scandals[0]
             setActiveScandal((prev: ScandalFull | null) => {
               if (!prev || prev.id === current.id) return current
+              return prev
+            })
+          } else {
+            setActiveScandal((prev: ScandalFull | null) => {
+              // Only clear if the current scandal is CLOSED or RESOLVED
+              if (prev && (prev.beat === 'CLOSED' || prev.status === 'RESOLVED')) return null
               return prev
             })
           }

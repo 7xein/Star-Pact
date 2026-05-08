@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       ? [scandal.attackerId, ...strikerAllies]
       : [] // defenders just survive — no windfall
 
-    const resolutionEndsAt = new Date(now.getTime() + 5000)
+    const resolutionEndsAt = new Date(now.getTime() + 7000)
 
     await prisma.$transaction(async (tx) => {
       if (attackerWins) {
