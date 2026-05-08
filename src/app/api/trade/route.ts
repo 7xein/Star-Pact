@@ -17,17 +17,9 @@ export async function POST(req: Request) {
   const senderRelations = JSON.parse(sender.relationsData)
   const receiverRelations = JSON.parse(receiver.relationsData)
 
-  // Check write-off in either direction
+  // Check write-off (blockaded) in either direction
   if (senderRelations.writeOff.includes(receiver.name) || receiverRelations.writeOff.includes(sender.name)) {
-    return NextResponse.json({ error: 'Trade blocked: write-off relationship' }, { status: 400 })
-  }
-
-  // Check all-right cap (2 units per resource)
-  const isAllRight = senderRelations.allRight.includes(receiver.name) || receiverRelations.allRight.includes(sender.name)
-  if (isAllRight) {
-    if (offerAmount > 2 || requestAmount > 2) {
-      return NextResponse.json({ error: 'Diplomatic Clearance: max 2 units per resource' }, { status: 400 })
-    }
+    return NextResponse.json({ error: 'Trade blocked: blockaded relationship' }, { status: 400 })
   }
 
   // Check sender has enough

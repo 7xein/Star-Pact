@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import PlanetOrb from '@/components/PlanetOrb'
+import ScandalOverlay, { type ScandalFull } from '@/components/scandal/ScandalOverlay'
 
 interface Country {
   id: string
@@ -47,8 +48,16 @@ interface Scandal {
   amount: number
   status: string
   windowEndsAt: string
-  attacker?: { name: string }
-  defender?: { name: string }
+  attacker?: { id: string; name: string; color: string }
+  defender?: { id: string; name: string; color: string }
+  // Theater of Voids
+  beat?: string
+  beatEndsAt?: string | null
+  currentRound?: number
+  hitSide?: string | null
+  alliances?: Array<{ countryId: string; side: string; country?: { name: string; color: string } }>
+  volleys?: Array<{ countryId: string; round: number; side: string }>
+  sessionId?: string
 }
 
 const RESOURCES = ['food', 'wealth', 'environment', 'kushBalls'] as const
@@ -58,9 +67,9 @@ const RES_ICONS: Record<string, string>  = { food: '⚡', wealth: '◉', environ
 // Editorial design tokens
 const B_GOLD  = '#e8c87a'
 const B_INK   = '#f4efe5'
-const B_DIM   = 'rgba(244,239,229,0.6)'
-const B_FAINT = 'rgba(244,239,229,0.35)'
-const B_LINE  = 'rgba(244,239,229,0.12)'
+const B_DIM   = 'rgba(244,239,229,0.78)'
+const B_FAINT = 'rgba(244,239,229,0.55)'
+const B_LINE  = 'rgba(244,239,229,0.14)'
 const B_SERIF = '"Space Grotesk", "Century Gothic", "Futura", sans-serif'
 const B_SANS  = '"Inter Tight", system-ui, sans-serif'
 const B_MONO  = '"JetBrains Mono", "Courier New", monospace'
@@ -104,7 +113,7 @@ function Rule() {
 // Mono label
 function Label({ children, color = B_FAINT, style }: { children: React.ReactNode; color?: string; style?: React.CSSProperties }) {
   return (
-    <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.3em', color, textTransform: 'uppercase', ...style }}>
+    <div style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color, textTransform: 'uppercase', ...style }}>
       {children}
     </div>
   )
@@ -122,6 +131,8 @@ export default function PlayPage() {
   const [notifType, setNotifType] = useState<'info' | 'raid' | 'error'>('info')
   const [flashRes, setFlashRes] = useState<Record<string, 'up' | 'down' | null>>({})
   const prevResRef = useRef<Record<string, number>>({})
+  const [activeScandal, setActiveScandal] = useState<ScandalFull | null>(null)
+  const advancingBeatRef = useRef(false)
 
   // Trade modal
   const [showTradeModal, setShowTradeModal] = useState(false)
@@ -171,6 +182,25 @@ export default function PlayPage() {
     if (me) setMyCountry(me)
   }, [])
 
+  // Beat advance timer — all clients try; server is idempotent
+  useEffect(() => {
+    if (!activeScandal?.beatEndsAt || activeScandal.beat === 'CLOSED') return
+    const check = async () => {
+      if (advancingBeatRef.current) return
+      const diff = new Date(activeScandal.beatEndsAt!).getTime() - Date.now()
+      if (diff > 0) return
+      advancingBeatRef.current = true
+      try {
+        await fetch('/api/scandal/advance-beat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scandalId: activeScandal.id }),
+        })
+      } catch { advancingBeatRef.current = false }
+    }
+    const id = setInterval(check, 300)
+    return () => clearInterval(id)
+  }, [activeScandal?.id, activeScandal?.beatEndsAt, activeScandal?.beat])
+
   const updateMyCountry = (me: Country) => {
     const prev = prevResRef.current
     const flashes: Record<string, 'up' | 'down' | null> = {}
@@ -215,10 +245,35 @@ export default function PlayPage() {
       }
       if (data.type === 'SCANDAL_LAUNCHED') {
         setActiveScandals(prev => [...prev, data.scandal])
+        setActiveScandal(data.scandal as ScandalFull)
         showNotif('Escalation in progress', 'raid')
+      }
+      if (data.type === 'SCANDAL_BEAT_ADVANCED') {
+        const updated = data.scandal as ScandalFull
+        setActiveScandal(prev => (prev?.id === updated.id) ? updated : prev)
+        setActiveScandals(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s))
+        advancingBeatRef.current = false
+      }
+      if (data.type === 'SCANDAL_VOLLEY_FIRED') {
+        setActiveScandal(prev => {
+          if (!prev || prev.id !== data.scandalId) return prev
+          const newVolley = { countryId: data.countryId, round: data.round, side: data.side }
+          return { ...prev, volleys: [...(prev.volleys ?? []), newVolley] }
+        })
+        // Update my rocket count if it's me
+        if (data.countryId === cid) {
+          setMyCountry(prev => prev ? { ...prev, kushBalls: data.remainingRockets } : prev)
+        } else {
+          // Update session country rockets
+          setSession(prev => prev ? {
+            ...prev,
+            countries: prev.countries.map(c => c.id === data.countryId ? { ...c, kushBalls: data.remainingRockets } : c)
+          } : prev)
+        }
       }
       if (data.type === 'SCANDAL_RESOLVED') {
         setActiveScandals(prev => prev.map(s => s.id === data.scandalId ? { ...s, status: 'RESOLVED' } : s))
+        setActiveScandal(prev => prev?.id === data.scandalId ? null : prev)
         if (data.session) {
           setSession(data.session)
           const me2 = data.session.countries.find((c: Country) => c.id === cid)
@@ -278,6 +333,32 @@ export default function PlayPage() {
     })
   }
 
+  const fireRocket = async () => {
+    const cid = countryIdRef.current
+    if (!cid || !activeScandal) return
+    const res = await fetch('/api/scandal/fire', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scandalId: activeScandal.id, countryId: cid }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      showNotif(err.error, 'error')
+    }
+  }
+
+  const joinAllianceForScandal = async (side: 'ATTACKER' | 'DEFENDER') => {
+    if (!activeScandal) return
+    await joinScandal(activeScandal.id, side)
+    // Update local state immediately
+    const cid = countryIdRef.current
+    if (cid) {
+      setActiveScandal(prev => prev ? {
+        ...prev,
+        alliances: [...(prev.alliances ?? []), { countryId: cid, side }]
+      } : prev)
+    }
+  }
+
   const submitDebrief = async () => {
     const sid = sessionIdRef.current; const cid = countryIdRef.current; if (!sid || !cid) return
     await fetch('/api/debrief', {
@@ -302,7 +383,7 @@ export default function PlayPage() {
               style={{ animation: 'spin-slow 2s linear infinite', transformOrigin: '24px 24px' }}/>
           </svg>
         </div>
-        <p style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: B_FAINT }}>
+        <p style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT }}>
           CONNECTING TO FEDERATION
         </p>
       </div>
@@ -327,6 +408,7 @@ export default function PlayPage() {
   return (
     <div style={{
       height: '100dvh',
+      width: '100%',
       maxWidth: '32rem',
       margin: '0 auto',
       display: 'flex',
@@ -350,7 +432,7 @@ export default function PlayPage() {
           animation: 'slide-down 0.3s ease-out',
         }}>
           <span style={{
-            fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.2em',
+            fontFamily: B_MONO, fontSize: 12, letterSpacing: '0.15em',
             color: notifType === 'raid' ? '#ff3b3b' : B_GOLD,
           }}>
             {notification.toUpperCase()}
@@ -370,10 +452,10 @@ export default function PlayPage() {
         <div style={{ fontFamily: B_SERIF, fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
           Nebula <span style={{ color: B_GOLD }}>·</span>
         </div>
-        <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.25em', color: B_FAINT, textAlign: 'center' }}>
+        <div style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, textAlign: 'center' }}>
           CHAPTER {session.year}
         </div>
-        <div style={{ textAlign: 'right', fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.18em', color: B_GOLD }}>
+        <div style={{ textAlign: 'right', fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.15em', color: B_GOLD }}>
           ● {(PHASE_LABELS[session.phase] ?? session.phase).toUpperCase()}
         </div>
       </div>
@@ -387,12 +469,12 @@ export default function PlayPage() {
           background: `${B_GOLD}08`,
         }}>
           <Label color={B_GOLD}>Trade offer · {t.senderName}</Label>
-          <div style={{ marginTop: 6, fontSize: 12, color: B_DIM }}>
+          <div style={{ marginTop: 6, fontSize: 14, color: B_INK }}>
             Offer {t.offerAmount} {RES_LABELS[t.offerResource]} &nbsp;·&nbsp; Want {t.requestAmount} {RES_LABELS[t.requestResource]}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button onClick={() => respondTrade(t.id, true)} className="btn-cyan flex-1" style={{ fontSize: '0.7rem' }}>ACCEPT</button>
-            <button onClick={() => respondTrade(t.id, false)} className="btn-red flex-1" style={{ fontSize: '0.7rem' }}>REJECT</button>
+            <button onClick={() => respondTrade(t.id, true)} className="btn-cyan flex-1" style={{ fontSize: '0.8rem' }}>ACCEPT</button>
+            <button onClick={() => respondTrade(t.id, false)} className="btn-red flex-1" style={{ fontSize: '0.8rem' }}>REJECT</button>
           </div>
         </div>
       ))}
@@ -406,18 +488,18 @@ export default function PlayPage() {
           background: 'rgba(255,59,59,0.06)',
         }}>
           <Label color="#ff3b3b">Escalation · {s.attacker?.name} vs {s.defender?.name}</Label>
-          <div style={{ marginTop: 6, fontSize: 12, color: B_DIM }}>
+          <div style={{ marginTop: 6, fontSize: 14, color: B_INK }}>
             {s.amount} {RES_LABELS[s.resource]} at stake
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button onClick={() => joinScandal(s.id, 'ATTACKER')} className="btn-red flex-1" style={{ fontSize: '0.7rem' }}>◤ STRIKE</button>
-            <button onClick={() => joinScandal(s.id, 'DEFENDER')} className="btn-cyan flex-1" style={{ fontSize: '0.7rem' }}>SHIELD ◢</button>
+            <button onClick={() => joinScandal(s.id, 'ATTACKER')} className="btn-red flex-1" style={{ fontSize: '0.8rem' }}>◤ STRIKE</button>
+            <button onClick={() => joinScandal(s.id, 'DEFENDER')} className="btn-cyan flex-1" style={{ fontSize: '0.8rem' }}>SHIELD ◢</button>
           </div>
         </div>
       ))}
 
       {/* ── Tab Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0', paddingBottom: '144px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0', paddingBottom: '144px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
 
         {/* ── IDENTITY ── */}
         {tab === 'identity' && (
@@ -437,7 +519,7 @@ export default function PlayPage() {
 
             <div style={{ width: '100%', marginBottom: 20 }}>
               <Label>About</Label>
-              <p style={{ marginTop: 8, fontSize: 13, lineHeight: 1.65, color: B_DIM }}>
+              <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: B_DIM }}>
                 {myCountry.story}
               </p>
             </div>
@@ -446,7 +528,7 @@ export default function PlayPage() {
 
             <div style={{ width: '100%' }}>
               <Label>Famous for</Label>
-              <p style={{ marginTop: 8, fontSize: 13, lineHeight: 1.65, color: B_DIM, fontStyle: 'italic' }}>
+              <p style={{ marginTop: 8, fontSize: 14, lineHeight: 1.65, color: B_DIM, fontStyle: 'italic' }}>
                 {myCountry.famousFor}
               </p>
             </div>
@@ -455,7 +537,7 @@ export default function PlayPage() {
 
         {/* ── RESOURCES ── */}
         {tab === 'resources' && (
-          <div>
+          <div style={{ width: '100%' }}>
             {RESOURCES.map(r => {
               const val = myCountry[r] as number
               const flash = flashRes[r]
@@ -480,13 +562,13 @@ export default function PlayPage() {
             })}
 
             {session.phase === 'TRADING' && (
-              <button onClick={() => setShowTradeModal(true)} className="btn-cyan w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.7rem', letterSpacing: '0.12em' }}>
+              <button onClick={() => setShowTradeModal(true)} className="btn-cyan w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.8rem', letterSpacing: '0.1em' }}>
                 PROPOSE TRADE
               </button>
             )}
 
             {session.phase === 'SCANDAL' && (
-              <button onClick={() => setShowEscalationModal(true)} className="btn-red w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.7rem', letterSpacing: '0.12em', boxShadow: '0 0 10px rgba(255,59,59,0.3)' }}>
+              <button onClick={() => setShowEscalationModal(true)} className="btn-red w-full" style={{ marginTop: 8, padding: '14px 0', fontSize: '0.8rem', letterSpacing: '0.1em', boxShadow: '0 0 10px rgba(255,59,59,0.3)' }}>
                 ◤ LAUNCH ESCALATION
               </button>
             )}
@@ -495,7 +577,7 @@ export default function PlayPage() {
 
         {/* ── PACTS ── */}
         {tab === 'pacts' && (
-          <div>
+          <div style={{ width: '100%' }}>
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 600, color: B_INK, marginBottom: 4 }}>
                 The pacts<span style={{ color: B_GOLD }}>.</span>
@@ -529,7 +611,7 @@ export default function PlayPage() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Label color={B_FAINT}>Current</Label>
-                    <span style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.15em', color: barColor }}>
+                    <span style={{ fontFamily: B_MONO, fontSize: 13, letterSpacing: '0.1em', color: barColor, fontWeight: 500 }}>
                       {current} / {p.target}
                     </span>
                   </div>
@@ -543,11 +625,10 @@ export default function PlayPage() {
 
         {/* ── ALLIES ── */}
         {tab === 'allies' && (
-          <div>
+          <div style={{ width: '100%' }}>
             {([
-              { key: 'rightOn',  label: 'Warp Lane',           color: '#22c55e' },
-              { key: 'allRight', label: 'Diplomatic Clearance', color: B_GOLD },
-              { key: 'writeOff', label: 'Blockaded',            color: '#ff3b3b' },
+              { key: 'rightOn',  label: 'Warp Lane',  color: '#22c55e' },
+              { key: 'writeOff', label: 'Blockaded',   color: '#ff3b3b' },
             ] as const).map(({ key, label, color }) => {
               const names = relations[key] as string[]
               return (
@@ -568,8 +649,8 @@ export default function PlayPage() {
                               <PlanetOrb name={planet.name} color={planet.color} size={28} glow={false} />
                             )}
                             <div style={{
-                              fontFamily: B_SERIF, fontSize: 14, fontWeight: 500,
-                              color: key === 'writeOff' ? B_FAINT : B_INK,
+                              fontFamily: B_SERIF, fontSize: 15, fontWeight: 500,
+                              color: key === 'writeOff' ? B_DIM : B_INK,
                               textDecoration: key === 'writeOff' ? 'line-through' : 'none',
                             }}>
                               {name}
@@ -594,10 +675,10 @@ export default function PlayPage() {
                 <div style={{ fontFamily: B_SERIF, fontSize: 48, fontWeight: 700, color: B_GOLD, marginBottom: 12 }}>
                   ◉
                 </div>
-                <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: B_GOLD }}>
+                <div style={{ fontFamily: B_MONO, fontSize: 12, letterSpacing: '0.2em', color: B_GOLD }}>
                   TRANSMISSION RECEIVED
                 </div>
-                <div style={{ fontFamily: B_SANS, fontSize: 14, color: B_FAINT, marginTop: 8 }}>
+                <div style={{ fontFamily: B_SANS, fontSize: 15, color: B_DIM, marginTop: 8 }}>
                   Thank you, Governor.
                 </div>
               </div>
@@ -681,7 +762,7 @@ export default function PlayPage() {
           </button>
         )}
         {session.phase !== 'TRADING' && session.phase !== 'SCANDAL' && (
-          <div style={{ flex: 1, padding: '12px 0', textAlign: 'center', fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.3em', color: B_FAINT }}>
+          <div style={{ flex: 1, padding: '12px 0', textAlign: 'center', fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT }}>
             {PHASE_LABELS[session.phase]?.toUpperCase() ?? 'STANDBY'}
           </div>
         )}
@@ -689,7 +770,7 @@ export default function PlayPage() {
           <button onClick={() => setShowEscalationModal(true)} style={{
             padding: '12px 16px', background: 'transparent',
             border: `1px solid ${B_LINE}`, color: B_DIM,
-            fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.15em', cursor: 'pointer',
+            fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.12em', cursor: 'pointer',
           }}>
             STAND ASIDE
           </button>
@@ -698,7 +779,7 @@ export default function PlayPage() {
           <button onClick={() => setShowEscalationModal(true)} style={{
             padding: '12px 16px', background: 'transparent',
             border: `1px solid ${B_LINE}`, color: B_DIM,
-            fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.15em', cursor: 'pointer',
+            fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.12em', cursor: 'pointer',
           }}>
             RAID
           </button>
@@ -749,7 +830,7 @@ export default function PlayPage() {
                     const blocked = relations.writeOff.includes(c.name)
                     return (
                       <option key={c.id} value={c.id} disabled={blocked}>
-                        {c.name}{blocked ? ' (Blockaded)' : relations.rightOn.includes(c.name) ? ' · Warp Lane' : relations.allRight.includes(c.name) ? ' · Diplo.' : ''}
+                        {c.name}{blocked ? ' (Blockaded)' : relations.rightOn?.includes(c.name) ? ' · Warp Lane' : ''}
                       </option>
                     )
                   })}
@@ -792,6 +873,17 @@ export default function PlayPage() {
         </div>
       )}
 
+      {/* ── Theater of Voids Overlay ── */}
+      {activeScandal && activeScandal.beat !== 'CLOSED' && (
+        <ScandalOverlay
+          scandal={activeScandal}
+          myCountry={myCountry}
+          session={session}
+          onFire={fireRocket}
+          onJoinAlliance={joinAllianceForScandal}
+        />
+      )}
+
       {/* ── Escalation Modal ── */}
       {showEscalationModal && (
         <div className="sp-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowEscalationModal(false) }}>
@@ -799,7 +891,7 @@ export default function PlayPage() {
             <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 700, color: '#ff3b3b', marginBottom: 4 }}>
               Launch escalation<span style={{ color: B_INK }}>.</span>
             </div>
-            <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.25em', color: B_FAINT, marginBottom: 12 }}>
+            <div style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, marginBottom: 12 }}>
               PICK A TARGET · PICK A RESOURCE
             </div>
             <div style={{ height: 1, background: 'rgba(255,59,59,0.3)', margin: '0 0 16px' }} />

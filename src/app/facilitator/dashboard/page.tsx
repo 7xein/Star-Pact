@@ -1,152 +1,160 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import QRCode from 'qrcode'
+import FacilitatorTV from '@/components/scandal/FacilitatorTV'
+import type { ScandalFull } from '@/components/scandal/ScandalOverlay'
 import PlanetOrb from '@/components/PlanetOrb'
 
-interface Country {
-  id: string
-  name: string
-  color: string
-  food: number
-  wealth: number
-  environment: number
-  kushBalls: number
-  promisesData: string
+// ── Design tokens (from README) ───────────────────────────────
+const B_BG    = '#0b0a14'
+const B_INK   = '#f4efe5'
+const B_DIM   = 'rgba(244,239,229,0.6)'
+const B_FAINT = 'rgba(244,239,229,0.55)'
+const B_LINE  = 'rgba(244,239,229,0.12)'
+const B_GOLD  = '#e8c87a'
+const B_GOOD  = '#9bd28a'
+const B_BAD   = '#d28a8a'
+const B_SERIF = '"Fraunces", "Source Serif 4", "Cormorant Garamond", Georgia, serif'
+const B_SANS  = '"Inter Tight", "Inter", system-ui, sans-serif'
+const B_MONO  = '"JetBrains Mono", ui-monospace, monospace'
+
+const RES_GLYPH: Record<string, string> = { energy: '⚡', oxygen: '○', crew: '◉', smugglers: '◈' }
+
+const PLANET_MOTTOS: Record<string, string> = {
+  ignis:    'We burned first. We will burn last.',
+  solara:   "If it's not dangerous, it's not worth doing.",
+  glacius:  'We remember. That is enough.',
+  rosara:   'Even in war, comfort is mandatory.',
+  verdania: 'Survival must be sustainable.',
+  lumenor:  "If it shines, it's worth building.",
+  dustara:  'Trust instinct. Distrust everyone else.',
+  aqualis:  'We solved it yesterday.',
+  voidara:  'Sing a song. Invoice to follow.',
+  ferron:   "What's the worst that could happen?",
 }
 
-interface PromiseCheck {
-  id: string
-  countryId: string
-  year: number
-  resource: string
-  required: number
-  actual: number
-  passed: boolean
-  country: Country
-}
+const CHAPTER_WORDS = ['One', 'Two', 'Three', 'Four', 'Five']
+const CHAPTER_ROMAN = ['I', 'II', 'III', 'IV', 'V']
 
-interface DebriefResponse {
-  id: string
-  countryId: string
-  q1: string; q2: string; q3: string; q4: string; q5: string
-  country: Country
-  createdAt: string
+// DB phase → tab index
+const DB_PHASE_TO_IDX: Record<string, number> = {
+  TRADING: 0, SCANDAL: 1, PROMISE_CHECK: 2, YEAR_END: 3, DEBRIEF: 3,
 }
+// Tab labels
+const PHASE_LABELS = ['Trade', 'Diplomacy', 'Pact Check', 'Resolution']
 
+// ── Trade log ─────────────────────────────────────────────────
 interface TradeEntry {
-  id: string
-  senderName: string
-  receiverName: string
-  offerResource: string
-  offerAmount: number
-  requestResource: string
-  requestAmount: number
-  status: string
-  time: number
+  tStr: string; from: string; to: string
+  give: { n: number; r: string }; take: { n: number; r: string }
+  status: 'sealed' | 'pending' | 'broken' | 'raided'
 }
 
-interface ScandalData {
-  id: string
-  attacker: { name: string; color: string }
-  defender: { name: string; color: string }
-  resource: string
-  amount: number
-  status: string
-  alliances: Array<{ country: { name: string }; side: string }>
+const TRADE_STATUS: Record<string, { label: string; color: string }> = {
+  sealed:  { label: 'SEALED',  color: B_GOOD },
+  pending: { label: 'PENDING', color: B_GOLD },
+  broken:  { label: 'BROKEN',  color: B_BAD  },
+  raided:  { label: 'RAIDED',  color: B_BAD  },
 }
 
-interface Session {
-  id: string
-  year: number
-  phase: string
-  timerEnd: string | null
-  timerRunning: boolean
-  countries: Country[]
+const MOCK_TRADES: TradeEntry[] = [
+  { tStr:'14:08', from:'aqualis', to:'verdania', give:{n:4,r:'crew'},   take:{n:3,r:'oxygen'}, status:'sealed'  },
+  { tStr:'14:06', from:'lumenor', to:'ignis',    give:{n:6,r:'energy'}, take:{n:2,r:'crew'},   status:'sealed'  },
+  { tStr:'14:05', from:'rosara',  to:'glacius',  give:{n:3,r:'oxygen'}, take:{n:1,r:'energy'}, status:'pending' },
+  { tStr:'14:03', from:'voidara', to:'rosara',   give:{n:2,r:'oxygen'}, take:{n:5,r:'crew'},   status:'broken'  },
+  { tStr:'14:01', from:'ferron',  to:'solara',   give:{n:5,r:'energy'}, take:{n:4,r:'oxygen'}, status:'sealed'  },
+]
+
+// ── Planet color lookup (for trade log etc) ──
+const PLANET_COLORS: Record<string, string> = {
+  ignis: '#ef4444', solara: '#facc15', glacius: '#22c55e', rosara: '#ec4899',
+  verdania: '#4ade80', lumenor: '#a855f7', dustara: '#f97316', aqualis: '#3b82f6',
+  voidara: '#94a3b8', ferron: '#7dd3fc',
 }
 
-interface RaidResult {
-  scandalId: string
-  outcome: string
-  attackerName: string
-  defenderName: string
-  resource: string
-  amount: number
+// ── StarField (animated canvas, from atoms.jsx) ──────────────
+function StarField({ density = 1 }: { density?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  useEffect(() => {
+    const c = canvasRef.current
+    if (!c) return
+    const ctx = c.getContext('2d')
+    if (!ctx) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const resize = () => {
+      const r = c.getBoundingClientRect()
+      c.width = r.width * dpr
+      c.height = r.height * dpr
+    }
+    resize()
+    const stars: Array<{ x: number; y: number; r: number; a: number }> = []
+    const count = Math.floor((c.width * c.height) / 8000 * density)
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * c.width,
+        y: Math.random() * c.height,
+        r: Math.random() * 1.4 * dpr + 0.3 * dpr,
+        a: Math.random() * 0.7 + 0.2,
+      })
+    }
+    let raf: number
+    let t = 0
+    const draw = () => {
+      ctx.clearRect(0, 0, c.width, c.height)
+      t += 0.016
+      for (const s of stars) {
+        const a = s.a + Math.sin(t * 2 + s.x) * 0.2
+        ctx.fillStyle = `rgba(255,255,255,${Math.max(0.05, a)})`
+        ctx.beginPath()
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    window.addEventListener('resize', resize)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
+  }, [density])
+  return <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }}/>
 }
 
-const PHASE_CLASS: Record<string, string> = {
-  TRADING: 'phase-trading anim-pulse-phase',
-  PROMISE_CHECK: 'phase-promise',
-  SCANDAL: 'phase-raid anim-pulse-phase',
-  YEAR_END: 'phase-yearend',
-  DEBRIEF: 'phase-debrief',
-}
-const PHASE_LABELS: Record<string, string> = {
-  TRADING: 'Trading Phase',
-  PROMISE_CHECK: 'Pact Check',
-  SCANDAL: 'Escalation',
-  YEAR_END: 'Chapter End',
-  DEBRIEF: 'Debrief',
-}
-const RES_LABELS: Record<string, string> = {
-  food: 'Energy', wealth: 'Crew', environment: 'Oxygen', kushBalls: 'Operatives'
-}
-const RES_ICONS: Record<string, string> = {
-  food: '⚡', wealth: '◉', environment: '○', kushBalls: '◈'
-}
-
-function resolveColor(c: string) { return c }
-
-function getPromiseDots(country: Country, checks: PromiseCheck[]) {
-  const promises = JSON.parse(country.promisesData) as Array<{ resource: string; target: number; byYear: number }>
-  return promises.map(p => {
-    const check = checks.find(c => c.countryId === country.id && c.resource === p.resource)
-    const current = country[p.resource as keyof Country] as number
-    if (check) return check.passed ? 'green' : 'red'
-    const diff = p.target - current
-    if (diff <= 0) return 'green'
-    if (diff <= 2) return 'amber'
-    return 'dim'
-  })
-}
-
-// Constellation layout — hand-composed positions for 300×260 box
+// ── Editorial Constellation (420×240) ────────────────────────
 const CONSTELLATION_LAYOUT: Record<string, { x: number; y: number; size: number }> = {
-  'Ignis Prime': { x: 52,  y: 64,  size: 30 },
-  'Solara':      { x: 132, y: 36,  size: 24 },
-  'Glacius':     { x: 224, y: 58,  size: 28 },
-  'Rosara':      { x: 268, y: 138, size: 22 },
-  'Verdania':    { x: 198, y: 116, size: 26 },
-  'Lumenor':     { x: 132, y: 138, size: 38 },
-  'Dustara':     { x: 38,  y: 144, size: 22 },
-  'Aqualis':     { x: 78,  y: 210, size: 32 },
-  'Voidara':     { x: 178, y: 218, size: 26 },
-  'Ferron':      { x: 252, y: 208, size: 22 },
+  ignis:    { x: 52,  y: 64,  size: 30 },
+  solara:   { x: 132, y: 36,  size: 24 },
+  glacius:  { x: 224, y: 58,  size: 28 },
+  rosara:   { x: 268, y: 138, size: 22 },
+  verdania: { x: 198, y: 116, size: 26 },
+  lumenor:  { x: 132, y: 138, size: 38 },
+  dustara:  { x: 38,  y: 144, size: 22 },
+  aqualis:  { x: 78,  y: 210, size: 32 },
+  voidara:  { x: 178, y: 218, size: 26 },
+  ferron:   { x: 252, y: 208, size: 22 },
 }
 
-const GOLD = '#e8c87a'
-const FAINT = 'rgba(244,239,229,0.32)'
-
-function EditorialConstellation({ countries, audit = false, reclaimedSet = new Set<string>() }: {
-  countries: Array<{ id: string; name: string; color: string }>
-  audit?: boolean
-  reclaimedSet?: Set<string>
+function EditorialConstellation({ planets, reclaimed, audit, caption }: {
+  planets: Array<{ id: string; color: string; name: string }>
+  reclaimed: Set<string>
+  audit: boolean
+  caption: string | null
 }) {
+  const W = 420, H = 240
   const orbRefs = useRef<(HTMLDivElement | null)[]>([])
-  const arcRef = useRef<SVGPathElement | null>(null)
+  const arcRef  = useRef<SVGPathElement | null>(null)
 
   useEffect(() => {
     let raf: number
     const start = performance.now()
-    const phases = countries.map((_, i) => i * 0.7)
+    const phases = planets.map((_, i) => i * 0.7)
     const tick = (now: number) => {
       const t = (now - start) / 1000
-      countries.forEach((_, i) => {
+      planets.forEach((_, i) => {
         const node = orbRefs.current[i]
         if (!node) return
         const dx = Math.cos(t * 0.18 + phases[i]) * 1.4
         const dy = Math.sin(t * 0.22 + phases[i] * 1.3) * 1.4
-        node.style.transform = `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)`
+        node.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px)`
       })
       if (arcRef.current) {
         const breathe = 0.32 + 0.08 * Math.sin(t * 0.4)
@@ -156,82 +164,136 @@ function EditorialConstellation({ countries, audit = false, reclaimedSet = new S
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [countries])
+  }, [planets.length])
 
-  const W = 300, H = 260
-  const caption = audit ? `◈ PACTS KEPT · ${reclaimedSet.size}/10` : null
+  const starDust: [number,number][] = [
+    [22,24],[68,18],[256,26],[292,80],[12,100],
+    [108,78],[168,70],[240,92],[16,188],[112,220],
+    [228,200],[294,200],[54,228],[196,210],[276,158],
+    [148,192],[86,110],[220,30],[44,114],[262,124],
+  ]
 
   return (
-    <div style={{ position: 'relative', width: W, height: H, flexShrink: 0 }}>
-      {/* Star-chart SVG */}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        {[[22,24],[68,18],[256,26],[292,80],[12,100],[108,78],[168,70],[240,92],[16,188],[112,248],
-          [228,252],[294,200],[54,248],[196,254],[276,158],[148,192],[86,110],[220,30],[44,114],[262,124]
-        ].map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r={i % 4 === 0 ? 0.9 : 0.5} fill="#f4efe5" opacity={0.18 + (i % 5) * 0.05} />
+    <div style={{ position:'relative', width:W, height:H, flexShrink:0 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+        style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
+        {starDust.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y}
+            r={i % 4 === 0 ? 0.9 : 0.5} fill="#f4efe5"
+            opacity={0.18 + (i % 5) * 0.05}/>
         ))}
+        {/* gold editorial arc */}
         <path ref={arcRef}
-          d={`M -10 ${H - 60} Q ${W * 0.5} ${H - 200} ${W + 10} 50`}
-          fill="none" stroke={GOLD} strokeOpacity="0.32" strokeWidth="0.8" />
-        <path d={`M -10 60 Q ${W * 0.5} ${H + 60} ${W + 10} ${H - 30}`}
-          fill="none" stroke="#f4efe5" strokeOpacity="0.06" strokeWidth="0.6" />
+          d={`M -10 ${H-60} Q ${W*0.5} ${H-200} ${W+10} 50`}
+          fill="none" stroke={B_GOLD} strokeOpacity="0.32" strokeWidth="0.8"/>
+        {/* faint counter-arc */}
+        <path
+          d={`M -10 60 Q ${W*0.5} ${H+60} ${W+10} ${H-30}`}
+          fill="none" stroke="#f4efe5" strokeOpacity="0.06" strokeWidth="0.6"/>
       </svg>
-
-      {/* Planet orbs */}
-      {countries.map((c, i) => {
-        const layout = CONSTELLATION_LAYOUT[c.name]
+      {planets.map((p, i) => {
+        const layout = CONSTELLATION_LAYOUT[p.id]
         if (!layout) return null
-        const lit = !audit || reclaimedSet.has(c.id)
+        const lit = !audit || reclaimed.has(p.id)
         return (
-          <div key={c.id} ref={el => { orbRefs.current[i] = el }} style={{
-            position: 'absolute',
-            left: layout.x - layout.size / 2,
-            top: layout.y - layout.size / 2,
-            width: layout.size, height: layout.size,
-            transition: 'filter 0.6s ease, opacity 0.6s ease',
-            filter: lit ? 'none' : 'saturate(0.18) brightness(0.55)',
-            opacity: lit ? 1 : 0.6,
-            willChange: 'transform',
-          }}>
-            <PlanetOrb name={c.name} color={c.color} size={layout.size} glow={lit} />
+          <div key={p.id} ref={el => { orbRefs.current[i] = el }}
+            style={{ position:'absolute',
+              left: layout.x - layout.size/2,
+              top:  layout.y - layout.size/2,
+              width: layout.size, height: layout.size,
+              transition: 'filter 0.6s ease, opacity 0.6s ease',
+              filter: lit ? 'none' : 'saturate(0.18) brightness(0.55)',
+              opacity: lit ? 1 : 0.6, willChange:'transform' }}>
+            <PlanetOrb name={p.name} color={p.color} size={layout.size} glow={lit} lit={lit}/>
             {audit && lit && (
-              <div style={{
-                position: 'absolute', top: -2, right: -2, width: 4, height: 4,
-                borderRadius: '50%', background: GOLD, boxShadow: `0 0 6px ${GOLD}`,
-              }} />
+              <div style={{ position:'absolute', top:-2, right:-2, width:4, height:4,
+                borderRadius:'50%', background:B_GOLD, boxShadow:`0 0 6px ${B_GOLD}` }}/>
             )}
           </div>
         )
       })}
-
-      {/* Corner labels */}
-      <div style={{ position:'absolute', top:0, left:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:FAINT }}>SECTOR · 07</div>
-      <div style={{ position:'absolute', top:0, right:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:FAINT }}>HOLLOW RING</div>
-      {caption && (
-        <div style={{ position:'absolute', bottom:0, left:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:GOLD, opacity:0.75 }}>
-          {caption}
-        </div>
-      )}
-      <div style={{ position:'absolute', bottom:0, right:0, fontFamily:'"JetBrains Mono",monospace', fontSize:8, letterSpacing:'0.28em', color:FAINT }}>PLATE · II</div>
+      {/* corner annotations */}
+      <div style={{ position:'absolute', top:0, left:0, fontFamily:B_MONO, fontSize:8, letterSpacing:'0.28em', color:B_FAINT }}>SECTOR · 07</div>
+      <div style={{ position:'absolute', top:0, right:0, fontFamily:B_MONO, fontSize:8, letterSpacing:'0.28em', color:B_FAINT }}>HOLLOW RING</div>
+      <div style={{ position:'absolute', bottom:0, left:0, fontFamily:B_MONO, fontSize:8, letterSpacing:'0.28em', color:B_GOLD,
+        opacity: caption ? 0.75 : 0, transition:'opacity 0.4s ease' }}>{caption || ''}</div>
+      <div style={{ position:'absolute', bottom:0, right:0, fontFamily:B_MONO, fontSize:8, letterSpacing:'0.28em', color:B_FAINT }}>PLATE · II</div>
     </div>
   )
 }
 
+// ── Button style ──────────────────────────────────────────────
+function btnB(primary: boolean): React.CSSProperties {
+  return {
+    fontFamily: B_SANS, fontSize: 12, letterSpacing: '0.08em', fontWeight: 500,
+    padding: '12px 22px', borderRadius: 0, cursor: 'pointer',
+    border: `1px solid ${primary ? B_GOLD : B_LINE}`,
+    background: primary ? B_GOLD : 'transparent',
+    color: primary ? '#0b0a14' : B_INK,
+  }
+}
+
+// ── Interfaces ────────────────────────────────────────────────
+interface Country {
+  id: string; name: string; color: string
+  food: number; wealth: number; environment: number; kushBalls: number
+  promisesData?: string
+}
+interface PromiseCheck {
+  id: string; countryId: string; year: number; resource: string
+  required: number; actual: number; passed: boolean; country: Country
+}
+interface DebriefResponse {
+  id: string; countryId: string; q1: string; q2: string; q3: string; q4: string; q5: string; country: Country; createdAt: string
+}
+interface ScandalData {
+  id: string; attackerId: string; defenderId: string
+  attacker: { id: string; name: string; color: string }
+  defender: { id: string; name: string; color: string }
+  resource: string; amount: number; status: string
+  alliances: Array<{ countryId: string; country?: { name: string; color: string }; side: string }>
+  volleys?: Array<{ countryId: string; round: number; side: string }>
+  beat?: string; beatEndsAt?: string | null; currentRound?: number; hitSide?: string | null; sessionId?: string
+}
+interface Session {
+  id: string; year: number; phase: string; timerEnd: string | null; timerRunning: boolean; countries: Country[]
+}
+interface RaidResult {
+  scandalId: string; outcome: string; attackerName: string; defenderName: string; resource: string; amount: number
+}
+
+function getPlanetId(name: string): string {
+  const n = name.toLowerCase()
+  if (n.includes('ignis'))    return 'ignis'
+  if (n.includes('solara'))   return 'solara'
+  if (n.includes('glacius'))  return 'glacius'
+  if (n.includes('rosara'))   return 'rosara'
+  if (n.includes('verdania')) return 'verdania'
+  if (n.includes('lumenor'))  return 'lumenor'
+  if (n.includes('dustara'))  return 'dustara'
+  if (n.includes('aqualis'))  return 'aqualis'
+  if (n.includes('voidara'))  return 'voidara'
+  if (n.includes('ferron'))   return 'ferron'
+  return n.split(' ')[0] || 'ignis'
+}
+
+// ── Main component ────────────────────────────────────────────
 export default function FacilitatorDashboard() {
-  const [session, setSession] = useState<Session | null>(null)
-  const [qrUrl, setQrUrl] = useState('')
-  const [timeLeft, setTimeLeft] = useState('')
-  const [isUrgent, setIsUrgent] = useState(false)
-  const [timerMinutes, setTimerMinutes] = useState(5)
+  const [session, setSession]             = useState<Session | null>(null)
   const [promiseChecks, setPromiseChecks] = useState<PromiseCheck[]>([])
   const [debriefResponses, setDebriefResponses] = useState<DebriefResponse[]>([])
-  const [scandals, setScandals] = useState<ScandalData[]>([])
-  const [tradeFeed, setTradeFeed] = useState<TradeEntry[]>([])
-  const [raidAlert, setRaidAlert] = useState<{ attacker: string; defender: string } | null>(null)
-  const [raidOverlay, setRaidOverlay] = useState<RaidResult | null>(null)
+  const [scandals, setScandals]           = useState<ScandalData[]>([])
+  const [raidAlert, setRaidAlert]         = useState<{ attacker: string; defender: string } | null>(null)
+  const [raidOverlay, setRaidOverlay]     = useState<RaidResult | null>(null)
   const [raidResolving, setRaidResolving] = useState<string | null>(null)
-  const sessionIdRef = useRef<string | null>(null)
-  const raidAlertTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [tvScandal, setTvScandal]         = useState<ScandalFull | null>(null)
+  const [recentTrades, setRecentTrades]   = useState<TradeEntry[]>(MOCK_TRADES)
+  const [qrUrl, setQrUrl]                 = useState('')
+  const [qrOpen, setQrOpen]               = useState(false)
+
+  const sessionIdRef    = useRef<string | null>(null)
+  const raidAlertTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const advancingBeatRef = useRef(false)
 
   const loadPromiseChecks = useCallback(async (sessionId: string, year: number) => {
     const res = await fetch(`/api/promises?sessionId=${sessionId}&year=${year}`)
@@ -258,7 +320,9 @@ export default function FacilitatorDashboard() {
     if (!id) { window.location.href = '/facilitator'; return }
     sessionIdRef.current = id
     loadSession(id)
-    QRCode.toDataURL(`${window.location.origin}/join`, { width: 160, margin: 1, color: { dark: '#d4a0ff', light: '#07021a' } }).then(setQrUrl)
+    QRCode.toDataURL(`${window.location.origin}/join`, {
+      width: 200, margin: 1, color: { dark: '#e8c87a', light: '#07021a' },
+    }).then(setQrUrl)
 
     const es = new EventSource(`/api/sse?sessionId=${id}`)
     es.onmessage = (e) => {
@@ -268,44 +332,32 @@ export default function FacilitatorDashboard() {
         if (data.session.phase === 'PROMISE_CHECK') loadPromiseChecks(id, data.session.year)
         if (data.session.phase === 'DEBRIEF') loadDebriefResponses(id)
       }
-      if (data.type === 'TRADE_OFFER') {
-        const t = data.trade
-        setTradeFeed(prev => [{
-          id: t.id, senderName: data.senderName, receiverName: data.receiverName,
-          offerResource: t.offerResource, offerAmount: t.offerAmount,
-          requestResource: t.requestResource, requestAmount: t.requestAmount,
-          status: 'PENDING', time: Date.now()
-        }, ...prev].slice(0, 20))
-      }
-      if (data.type === 'TRADE_ACCEPTED' || data.type === 'TRADE_REJECTED') {
-        const status = data.type === 'TRADE_ACCEPTED' ? 'ACCEPTED' : 'REJECTED'
-        setTradeFeed(prev => prev.map(t => t.id === data.trade?.id ? { ...t, status } : t))
-        if (data.session) setSession(data.session)
-        if (data.sender && data.receiver) {
-          setSession(prev => {
-            if (!prev) return prev
-            return {
-              ...prev,
-              countries: prev.countries.map(c =>
-                c.id === data.sender?.id ? data.sender :
-                c.id === data.receiver?.id ? data.receiver : c
-              )
-            }
-          })
-        }
-      }
-      if (data.type === 'DEBRIEF_RESPONSE') {
+      if (data.type === 'DEBRIEF_RESPONSE')
         setDebriefResponses(prev => [...prev.filter(r => r.id !== data.response.id), data.response])
-      }
       if (data.type === 'SCANDAL_LAUNCHED') {
-        setScandals(prev => [...prev, { ...data.scandal, alliances: [] }])
+        const sc = data.scandal as ScandalData
+        setScandals(prev => [...prev, { ...sc, alliances: sc.alliances ?? [] }])
+        setTvScandal(sc as ScandalFull)
         setRaidAlert({ attacker: data.scandal.attacker?.name, defender: data.scandal.defender?.name })
         if (raidAlertTimer.current) clearTimeout(raidAlertTimer.current)
         raidAlertTimer.current = setTimeout(() => setRaidAlert(null), 5000)
       }
+      if (data.type === 'SCANDAL_BEAT_ADVANCED') {
+        const updated = data.scandal as ScandalFull
+        setTvScandal(prev => prev?.id === updated.id ? updated : prev)
+        setScandals(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } as ScandalData : s))
+        advancingBeatRef.current = false
+        if (updated.beat === 'CLOSED') setTimeout(() => setTvScandal(null), 500)
+      }
+      if (data.type === 'SCANDAL_VOLLEY_FIRED') {
+        setTvScandal(prev => {
+          if (!prev || prev.id !== data.scandalId) return prev
+          return { ...prev, volleys: [...(prev.volleys ?? []), { countryId: data.countryId, round: data.round, side: data.side }] }
+        })
+      }
       if (data.type === 'SCANDAL_ALLY') {
-        setScandals(prev => prev.map(s => s.id === data.scandalId
-          ? { ...s, alliances: [...(s.alliances || []), data.alliance] } : s))
+        setScandals(prev => prev.map(s => s.id === data.scandalId ? { ...s, alliances: [...(s.alliances || []), data.alliance] } : s))
+        setTvScandal(prev => prev?.id === data.scandalId ? { ...prev, alliances: [...(prev?.alliances ?? []), data.alliance] } as ScandalFull : prev)
       }
       if (data.type === 'SCANDAL_RESOLVED') {
         setScandals(prev => prev.map(s => s.id === data.scandalId ? { ...s, status: 'RESOLVED' } : s))
@@ -313,383 +365,441 @@ export default function FacilitatorDashboard() {
         setScandals(prev => {
           const sc = prev.find(s => s.id === data.scandalId)
           if (sc) {
-            setRaidOverlay({
-              scandalId: data.scandalId,
-              outcome: data.outcome,
-              attackerName: sc.attacker?.name || '?',
-              defenderName: sc.defender?.name || '?',
-              resource: sc.resource,
-              amount: sc.amount,
-            })
+            setRaidOverlay({ scandalId: data.scandalId, outcome: data.outcome, attackerName: sc.attacker?.name || '?', defenderName: sc.defender?.name || '?', resource: sc.resource, amount: sc.amount })
             setTimeout(() => setRaidOverlay(null), 6000)
           }
           return prev
         })
         setRaidResolving(null)
       }
+      // Trade events — add to recent trades feed
+      if (data.type === 'TRADE_ACCEPTED' && data.trade) {
+        const t = data.trade
+        const now = new Date()
+        const tStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+        const entry: TradeEntry = {
+          tStr,
+          from: getPlanetId(data.sender?.name || t.senderName || ''),
+          to:   getPlanetId(data.receiver?.name || t.receiverName || ''),
+          give: { n: t.offerAmount || 0, r: t.offerResource || 'energy' },
+          take: { n: t.requestAmount || 0, r: t.requestResource || 'oxygen' },
+          status: 'sealed',
+        }
+        setRecentTrades(prev => [entry, ...prev].slice(0, 5))
+      }
+      if (data.type === 'TRADE_OFFER' && data.trade) {
+        const t = data.trade
+        const now = new Date()
+        const tStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+        const entry: TradeEntry = {
+          tStr,
+          from: getPlanetId(data.senderName || ''),
+          to:   getPlanetId(data.receiverName || ''),
+          give: { n: t.offerAmount || 0, r: t.offerResource || 'energy' },
+          take: { n: t.requestAmount || 0, r: t.requestResource || 'oxygen' },
+          status: 'pending',
+        }
+        setRecentTrades(prev => [entry, ...prev].slice(0, 5))
+      }
     }
-    return () => es.close()
+
+    // Polling fallback — serverless workers may not share the in-memory
+    // EventEmitter, so SSE events can be silently lost. Poll every 4s as backup.
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch('/api/session')
+        if (res.ok) {
+          const fresh = await res.json()
+          setSession((prev: Session | null) => {
+            if (!prev) return fresh
+            // Only update if something actually changed
+            if (prev.phase !== fresh.phase || prev.year !== fresh.year ||
+                JSON.stringify(prev.countries) !== JSON.stringify(fresh.countries)) {
+              if (fresh.phase === 'PROMISE_CHECK') loadPromiseChecks(id, fresh.year)
+              if (fresh.phase === 'DEBRIEF') loadDebriefResponses(id)
+              return fresh
+            }
+            return prev
+          })
+        }
+      } catch { /* ignore polling errors */ }
+    }, 4000)
+
+    return () => { es.close(); clearInterval(poll) }
   }, [loadSession, loadPromiseChecks, loadDebriefResponses])
 
-  // Timer
+  // Beat advance
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (session?.timerEnd && session.timerRunning) {
-        const diff = new Date(session.timerEnd).getTime() - Date.now()
-        if (diff <= 0) { setTimeLeft('00:00'); setIsUrgent(false); return }
-        setIsUrgent(diff < 60000)
-        const m = Math.floor(diff / 60000)
-        const s = Math.floor((diff % 60000) / 1000)
-        setTimeLeft(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`)
-      }
-    }, 500)
-    return () => clearInterval(interval)
-  }, [session])
+    if (!tvScandal?.beatEndsAt || tvScandal.beat === 'CLOSED') return
+    const check = async () => {
+      if (advancingBeatRef.current) return
+      if (new Date(tvScandal.beatEndsAt!).getTime() - Date.now() > 0) return
+      advancingBeatRef.current = true
+      try { await fetch('/api/scandal/advance-beat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scandalId: tvScandal.id }) }) }
+      catch { advancingBeatRef.current = false }
+    }
+    const id = setInterval(check, 300)
+    return () => clearInterval(id)
+  }, [tvScandal?.id, tvScandal?.beatEndsAt, tvScandal?.beat])
 
   const phaseAction = async (action: string, extra?: object) => {
-    const id = sessionIdRef.current
-    if (!id) return
-    await fetch('/api/session/phase', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: id, action, ...extra })
-    })
+    const id = sessionIdRef.current; if (!id) return
+    await fetch('/api/session/phase', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId: id, action, ...extra }) })
   }
 
   const resolveScandal = async (scandalId: string) => {
     setRaidResolving(scandalId)
     setTimeout(async () => {
-      await fetch('/api/scandal/resolve', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scandalId })
-      })
+      await fetch('/api/scandal/resolve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scandalId }) })
     }, 3000)
   }
 
-  if (!session) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="font-display text-sm tracking-widest" style={{ color: 'var(--stardust)' }}>INITIALIZING COMMAND CENTER...</p>
-    </div>
-  )
+  // ── Derived values ────────────────────────────────────────
+  const phaseIdx = session ? (DB_PHASE_TO_IDX[session.phase] ?? 0) : 0
+
+  const constellationPlanets = useMemo(() => {
+    if (!session) return []
+    return session.countries.map(c => ({ id: getPlanetId(c.name), color: c.color, name: c.name }))
+  }, [session?.countries])
+
+  const reclaimed = useMemo(() => {
+    if (!session) return new Set<string>()
+    if (session.phase !== 'PROMISE_CHECK') return new Set(constellationPlanets.map(p => p.id))
+    const s = new Set<string>()
+    for (const c of session.countries) {
+      const checks = promiseChecks.filter(ch => ch.countryId === c.id)
+      if (checks.length > 0 && checks.every(ch => ch.passed)) s.add(getPlanetId(c.name))
+    }
+    return s
+  }, [session?.phase, promiseChecks, constellationPlanets])
+
+  // Pact progress for ledger column
+  const pactProgress = useMemo(() => {
+    if (!session) return []
+    return session.countries.map(c => {
+      const pid = getPlanetId(c.name)
+      const checks = promiseChecks.filter(ch => ch.countryId === c.id)
+      const due = checks.length
+      if (due === 0) return { country: c, pid, pct: 0, due: 0, met: 0 }
+      const met = checks.filter(ch => ch.passed).length
+      const pct = checks.reduce((acc, ch) => acc + Math.min(1, ch.actual / Math.max(1, ch.required)), 0) / due
+      return { country: c, pid, pct, due, met }
+    })
+  }, [session?.countries, promiseChecks])
 
   const activeRaids = scandals.filter(s => s.status === 'OPEN')
 
-  return (
-    <div style={{ height:'100vh', overflow:'hidden', display:'flex', flexDirection:'column', padding:'12px', position:'relative', boxSizing:'border-box', fontFamily: 'var(--font-body)' }}>
+  if (!session) return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:B_BG }}>
+      <p style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase' }}>
+        INITIALIZING COMMAND CENTER…
+      </p>
+    </div>
+  )
 
-      {/* ── Raid Alert Banner ── */}
+  const nowStr = new Date().toLocaleString('en-GB', {
+    day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit',
+  }).toUpperCase().replace(/ /g,'·').replace(',','')
+
+  const isPactCheck = session.phase === 'PROMISE_CHECK'
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:B_BG, overflow:'hidden' }}>
+
+      {/* ── Theater of Voids overlay ── */}
+      {tvScandal && tvScandal.beat !== 'CLOSED' && (
+        <FacilitatorTV scandal={tvScandal} session={session}/>
+      )}
+
+      {/* ── Raid alert banner ── */}
       {raidAlert && (
         <div className="fixed top-0 left-0 right-0 z-50 anim-slide-down"
-          style={{ background: 'rgba(255,59,59,0.15)', borderBottom: '1px solid var(--red-raid)', backdropFilter: 'blur(8px)', padding: '0.75rem', textAlign: 'center' }}>
-          <span className="font-display text-sm tracking-widest" style={{ color: 'var(--red-raid)', textShadow: 'var(--red-glow)' }}>
+          style={{ background:'rgba(255,59,59,0.15)', borderBottom:'1px solid var(--red-raid)', backdropFilter:'blur(8px)', padding:'0.75rem', textAlign:'center' }}>
+          <span style={{ fontFamily:B_MONO, fontSize:11, letterSpacing:'0.2em', color:'#ff3b3b', textShadow:'0 0 10px #ff3b3b' }}>
             ◤ ESCALATION LAUNCHED — {raidAlert.attacker} vs {raidAlert.defender}
           </span>
         </div>
       )}
 
-      {/* ── Raid Resolve Overlay ── */}
+      {/* ── Raid resolve overlay ── */}
       {(raidResolving || raidOverlay) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}
-          onClick={() => { setRaidOverlay(null); setRaidResolving(null); }}>
-          <div className="sp-card sp-modal-red text-center p-8 w-full mx-4" style={{ maxWidth: '32rem' }}>
-            {raidResolving && !raidOverlay ? (
-              <>
-                <p className="font-display text-xs tracking-widest text-slate-400 mb-6">RESOLVING ESCALATION...</p>
-                <div className="flex items-center justify-center mb-6">
-                  <div className="relative w-24 h-24">
-                    <div className="absolute inset-0 rounded-full border-2 anim-spin" style={{ borderColor: 'var(--red-raid)', borderTopColor: 'transparent' }} />
-                    <div className="absolute inset-3 rounded-full border anim-spin" style={{ borderColor: 'rgba(255,59,59,0.4)', borderBottomColor: 'transparent', animationDirection: 'reverse', animationDuration: '1.2s' }} />
-                    <div className="absolute inset-0 flex items-center justify-center font-display text-xs" style={{ color: 'var(--red-raid)' }}>+</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background:'rgba(0,0,0,0.9)', backdropFilter:'blur(8px)' }}
+          onClick={() => { setRaidOverlay(null); setRaidResolving(null) }}>
+          <div style={{ background:'#160a0a', border:'1px solid rgba(255,59,59,0.4)', boxShadow:'0 0 40px rgba(255,59,59,0.15)', padding:'2rem', maxWidth:'28rem', width:'100%', textAlign:'center' }}>
+            {raidResolving && !raidOverlay
+              ? <p style={{ fontFamily:B_MONO, fontSize:11, letterSpacing:'0.2em', color:'#ff3b3b' }}>RESOLVING ESCALATION…</p>
+              : raidOverlay
+                ? <div className="anim-fade-in">
+                    {raidOverlay.outcome === 'ATTACKER_WINS'
+                      ? <p style={{ fontFamily:B_SERIF, fontSize:32, fontWeight:300, fontStyle:'italic', color:'#22c55e' }}>Raid successful.</p>
+                      : <p style={{ fontFamily:B_SERIF, fontSize:32, fontWeight:300, fontStyle:'italic', color:'#ff3b3b' }}>Raid repelled.</p>}
+                    <p style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_FAINT, marginTop:12 }}>TAP TO DISMISS</p>
                   </div>
-                </div>
-                <p className="font-display text-sm tracking-widest" style={{ color: 'var(--red-raid)' }}>ESCALATION IN PROGRESS...</p>
-              </>
-            ) : raidOverlay ? (
-              <div className="anim-fade-in">
-                {raidOverlay.outcome === 'ATTACKER_WINS' ? (
-                  <>
-                    <p className="font-display text-3xl font-black mb-2" style={{ color: '#22c55e', textShadow: '0 0 20px rgba(34,197,94,0.6)' }}>✅ RAID SUCCESSFUL</p>
-                    <p className="font-display text-lg mb-4" style={{ color: '#22c55e' }}>{raidOverlay.attackerName} WINS</p>
-                    <p className="text-slate-400 text-sm">+{raidOverlay.amount} {RES_ICONS[raidOverlay.resource]} {RES_LABELS[raidOverlay.resource]} transferred</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-display text-3xl font-black mb-2 anim-pulse-red" style={{ color: 'var(--red-raid)' }}>❌ RAID REPELLED</p>
-                    <p className="font-display text-lg mb-4" style={{ color: 'var(--red-raid)' }}>{raidOverlay.defenderName} WINS</p>
-                    <p className="text-slate-400 text-sm">Attacker force retreats</p>
-                  </>
-                )}
-                <p className="text-xs text-slate-600 mt-4 font-display tracking-widest">TAP TO DISMISS</p>
-              </div>
-            ) : null}
+                : null}
           </div>
         </div>
       )}
 
-      <div style={{ maxWidth:'1600px', margin:'0 auto', width:'100%', display:'flex', flexDirection:'column', flex:1, minHeight:0, overflow:'hidden' }}>
+      {/* ── Active raids panel ── */}
+      {activeRaids.length > 0 && (
+        <div style={{ position:'absolute', top:16, right:16, zIndex:20, maxWidth:320, display:'flex', flexDirection:'column', gap:8 }}>
+          {activeRaids.map(s => (
+            <div key={s.id} style={{ background:'rgba(22,10,10,0.95)', border:'1px solid rgba(255,59,59,0.4)', padding:'12px 16px', backdropFilter:'blur(8px)' }}>
+              <p style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:'#ff3b3b', marginBottom:6 }}>◤ ACTIVE ESCALATION</p>
+              <p style={{ fontFamily:B_SERIF, fontSize:16, fontWeight:400 }}>{s.attacker?.name} <span style={{ color:B_FAINT }}>vs</span> {s.defender?.name}</p>
+              <button onClick={() => resolveScandal(s.id)} style={{ marginTop:8, fontFamily:B_SANS, fontSize:11, letterSpacing:'0.08em', padding:'6px 14px', border:'1px solid rgba(255,59,59,0.5)', background:'transparent', color:'#ff3b3b', cursor:'pointer' }}>
+                RESOLVE
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* ── Top Header Bar ── */}
-        <div className="flex items-center justify-between mb-2 px-1">
+      {/* ── Main editorial stage ── */}
+      <div style={{ position:'absolute', inset:0, color:B_INK, fontFamily:B_SANS, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+
+        {/* Animated star field (canvas) */}
+        <StarField density={0.7}/>
+
+        {/* Nebula gradient */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:`radial-gradient(ellipse at 80% 0%, #5b3a8a33 0%, transparent 50%), radial-gradient(ellipse at 0% 100%, #c9885633 0%, transparent 50%)` }}/>
+
+        {/* ── Masthead ── */}
+        <div style={{ position:'relative', flexShrink:0, display:'grid', gridTemplateColumns:'auto 1fr auto', alignItems:'center', padding:'18px 40px 14px', borderBottom:`1px solid ${B_LINE}` }}>
           <div>
-            <h1 className="font-display text-2xl font-black tracking-widest" style={{ color: 'var(--stardust)', textShadow: '0 0 30px rgba(155,89,182,0.7), 0 0 60px rgba(155,89,182,0.3)' }}>STAR PACT</h1>
-            <p className="font-display text-xs tracking-widest" style={{ color: '#3d2860' }}>FEDERATION COMMAND · FACILITATOR CONSOLE</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-center">
-              <p className="font-display text-xs text-slate-500 tracking-widest">CHAPTER</p>
-              <p className="font-display text-3xl font-black glow-cyan">{session.year}<span className="text-lg text-slate-500"> /5</span></p>
+            <div style={{ fontFamily:B_SERIF, fontSize:30, fontWeight:300, fontStyle:'italic', letterSpacing:'-0.01em' }}>
+              Nebula <span style={{ color:B_GOLD }}>Alliance</span>
             </div>
-            <div style={{ width: '1px', height: '48px', background: 'var(--divider)' }} />
+            <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_FAINT, marginTop:2 }}>
+              VOL. V · THE WAR MANUAL · SECTOR 07
+            </div>
+          </div>
+          <div style={{ textAlign:'center', fontFamily:B_MONO, fontSize:10, letterSpacing:'0.25em', color:B_DIM }}>
+            THE EMPERIUM · OFFICIAL FACILITATOR DISPATCH
+          </div>
+          <div style={{ textAlign:'right', fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_DIM }}>
+            {nowStr}<br/>
+            <span style={{ color:B_GOLD }}>● </span>BROADCAST LIVE
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div style={{ position:'relative', flex:1, minHeight:0, display:'grid', gridTemplateColumns:'1.05fr 0.95fr' }}>
+
+          {/* ── LEFT COLUMN ── */}
+          <div style={{ padding:'24px 40px', borderRight:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column', gap:18, overflow:'hidden' }}>
+
+            {/* Chapter */}
+            <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>
+              CHAPTER <span style={{ color:B_GOLD }}>{CHAPTER_WORDS[session.year - 1] || 'One'}</span><span style={{ color:B_GOLD }}>.</span> <span style={{ color:B_DIM }}>of five.</span>
+            </div>
+
+            {/* Hairline */}
+            <div style={{ height:1, background:B_LINE }}/>
+
+            {/* Phase name + tabs */}
             <div>
-              <span className={`phase-badge ${PHASE_CLASS[session.phase] || 'phase-yearend'}`}>
-                {PHASE_LABELS[session.phase] || session.phase}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ borderTop: '1px solid var(--divider)' }} className="mb-2" />
-
-        {/* ── Timer + Controls ── */}
-        <div className="sp-card mb-2" style={{ padding: '8px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'nowrap', minWidth: 0 }}>
-            <div style={{ flexShrink: 0 }}>
-              <p className="font-display" style={{ fontSize: '0.45rem', letterSpacing: '2px', color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase', marginBottom: 2 }}>Countdown</p>
-              <p className={`font-display font-black ${isUrgent ? 'anim-pulse-red' : 'glow-cyan'}`}
-                style={{ fontSize: '2rem', lineHeight: 1, color: isUrgent ? 'var(--red-raid)' : 'var(--cyan)' }}>
-                {timeLeft || '--:--'}
-              </p>
-            </div>
-            <div style={{ width: 1, height: 40, background: 'var(--divider)', flexShrink: 0 }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <input type="number" value={timerMinutes} onChange={e => setTimerMinutes(Number(e.target.value))}
-                className="sp-input font-display" style={{ width: 52, textAlign: 'center', padding: '4px 6px' }} min="1" max="60" />
-              <span className="font-display" style={{ fontSize: '0.5rem', letterSpacing: '1.5px', color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase' }}>Min</span>
-            </div>
-            <button onClick={() => phaseAction('START_TIMER', { minutes: timerMinutes })} className="btn-cyan" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>▶ START</button>
-            <button onClick={() => phaseAction('PAUSE_TIMER')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>⏸ PAUSE</button>
-            <div style={{ flex: 1 }} />
-            <button onClick={() => phaseAction('NEXT_PHASE')} className="btn-cyan" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT PHASE →</button>
-            <button onClick={() => phaseAction('NEXT_YEAR')} className="btn-ghost" style={{ flexShrink: 0, padding: '5px 12px', fontSize: '0.6rem' }}>NEXT CHAPTER ⏭</button>
-          </div>
-        </div>
-
-        {/* ── Main Content ── */}
-        <div style={{ display:'grid', gap:8, gridTemplateColumns:'1fr 280px', flex:1, minHeight:0, overflow:'hidden' }}>
-
-          {/* ── Left: Scoreboard + phase panels ── */}
-          <div style={{ display:'flex', flexDirection:'column', gap:8, minHeight:0, overflow:'hidden' }}>
-
-            {/* Promise Check */}
-            {session.phase === 'PROMISE_CHECK' && promiseChecks.length > 0 && (
-              <div className="sp-card p-4" style={{ flexShrink:0 }}>
-                <p className="font-display text-xs tracking-widest text-amber-400 mb-3">◈ PACT CHECK — CHAPTER {session.year}</p>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  {Array.from(new Set(promiseChecks.map(c => c.country.name))).map(name => {
-                    const checks = promiseChecks.filter(c => c.country.name === name)
-                    const allPassed = checks.every(c => c.passed)
-                    const country = session.countries.find(c => c.name === name)
-                    return (
-                      <div key={name} className="sp-card p-2" style={{ borderLeft: `3px solid ${allPassed ? '#22c55e' : 'var(--red-raid)'}` }}>
-                        <p className="font-display text-xs font-bold mb-1" style={{ color: country ? resolveColor(country.color) : 'white' }}>{name}</p>
-                        {checks.map(c => (
-                          <p key={c.id} className="text-xs" style={{ color: c.passed ? '#22c55e' : 'var(--red-raid)' }}>
-                            {c.passed ? '✓' : '✗'} {RES_ICONS[c.resource]} {c.actual}/{c.required}
-                          </p>
-                        ))}
-                      </div>
-                    )
-                  })}
+              <div style={{ display:'flex', alignItems:'baseline', gap:18 }}>
+                <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500, flexShrink:0 }}>PHASE</div>
+                <div style={{ fontFamily:B_SERIF, fontSize:42, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic' }}>
+                  {PHASE_LABELS[phaseIdx]}
                 </div>
               </div>
-            )}
-
-            {/* Active Raids */}
-            {activeRaids.length > 0 && (
-              <div className="sp-card p-4" style={{ borderColor: 'rgba(255,59,59,0.3)', flexShrink:0 }}>
-                <p className="font-display text-xs tracking-widest mb-3" style={{ color: 'var(--red-raid)' }}>◤ ACTIVE ESCALATIONS</p>
-                <div className="space-y-2">
-                  {activeRaids.map(s => (
-                    <div key={s.id} className="sp-card p-3 flex items-center justify-between"
-                      style={{ background: 'rgba(255,59,59,0.08)', borderColor: 'rgba(255,59,59,0.25)' }}>
-                      <div>
-                        <p className="font-display text-sm font-bold" style={{ color: 'var(--red-raid)' }}>
-                          {s.attacker?.name} <span className="text-slate-500">VS</span> {s.defender?.name}
-                        </p>
-                        <p className="text-xs text-slate-400">{s.amount} {RES_ICONS[s.resource]} {RES_LABELS[s.resource]} contested</p>
-                        <div className="flex gap-1 mt-1 flex-wrap">
-                          {s.alliances?.map((a, i) => (
-                            <span key={i} className="text-xs px-2 py-0.5 rounded-full font-display"
-                              style={{ background: a.side === 'ATTACKER' ? 'rgba(255,59,59,0.2)' : 'rgba(155,89,182,0.15)', color: a.side === 'ATTACKER' ? 'var(--red-raid)' : 'var(--cyan)', border: '1px solid currentColor' }}>
-                              {a.country?.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <button onClick={() => resolveScandal(s.id)} className="btn-red ml-3" style={{ whiteSpace: 'nowrap' }}>
-                        ◈ RESOLVE
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display:'flex', gap:0, borderTop:`1px solid ${B_LINE}`, borderBottom:`1px solid ${B_LINE}`, marginTop:8 }}>
+                {PHASE_LABELS.map((label, i) => (
+                  <div key={i} style={{ flex:1, padding:'10px 0', textAlign:'center',
+                    borderRight: i < 3 ? `1px solid ${B_LINE}` : 'none',
+                    background: i === phaseIdx ? 'rgba(255,255,255,0.067)' : 'transparent' }}>
+                    <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.25em', color: i===phaseIdx ? B_GOLD : B_FAINT }}>0{i+1}</div>
+                    <div style={{ fontFamily:B_SERIF, fontSize:14, fontStyle: i===phaseIdx ? 'italic' : 'normal', marginTop:3, color: i===phaseIdx ? B_INK : B_DIM }}>{label}</div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
-            {/* Debrief */}
-            {session.phase === 'DEBRIEF' && (
-              <div className="sp-card p-4" style={{ flexShrink:0 }}>
-                <p className="font-display text-xs tracking-widest mb-3" style={{ color: '#a78bfa' }}>
-                  📡 INCOMING TRANSMISSIONS — DEBRIEF IN PROGRESS ({debriefResponses.length})
-                </p>
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                  {debriefResponses.map((r, i) => (
-                    <div key={r.id} className="sp-card p-3 anim-typewriter" style={{ animationDelay: `${i * 0.1}s` }}>
-                      <p className="font-display text-xs font-bold mb-2" style={{ color: resolveColor(r.country?.color) }}>
-                        ▶ {r.country?.name}
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-xs text-slate-400">
-                        <p><span className="text-slate-600">Q1:</span> {r.q1}</p>
-                        <p><span className="text-slate-600">Q2:</span> {r.q2}</p>
-                        <p><span className="text-slate-600">Q3:</span> {r.q3}</p>
-                        <p><span className="text-slate-600">Q4:</span> {r.q4}</p>
-                        <p className="md:col-span-2"><span className="text-slate-600">Q5:</span> {r.q5}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {debriefResponses.length === 0 && (
-                    <p className="font-display text-xs tracking-widest text-slate-600">AWAITING TRANSMISSIONS...</p>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Constellation */}
+            <div style={{ display:'flex', justifyContent:'center', alignItems:'center' }}>
+              <EditorialConstellation
+                planets={constellationPlanets}
+                reclaimed={reclaimed}
+                audit={isPactCheck}
+                caption={isPactCheck ? `◈ PACTS KEPT · ${reclaimed.size}/10` : null}
+              />
+            </div>
 
-            {/* Planet Scoreboard */}
-            <div className="sp-card" style={{ padding:'10px 12px', flex:1, minHeight:0, overflow:'hidden', display:'flex', flexDirection:'column' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <ellipse cx="12" cy="12" rx="11" ry="4.2" transform="rotate(-30 12 12)"/>
-                  <ellipse cx="12" cy="12" rx="11" ry="4.2" transform="rotate(30 12 12)"/>
-                </svg>
-                <p className="font-display text-xs tracking-widest text-slate-500">PLANETARY RESOURCE STATUS</p>
+            {/* Trade log */}
+            <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column' }}>
+              <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:8 }}>
+                <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>TRADE LOG</div>
+                <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:B_GOLD }}>● LIVE</div>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, flex:1, minHeight:0, overflowY:'auto' }}>
-                {session.countries.map(c => {
-                  const dots = getPromiseDots(c, promiseChecks)
-                  const col = resolveColor(c.color)
+              <div style={{ flex:1, minHeight:0, overflow:'hidden', borderTop:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column' }}>
+                {recentTrades.slice(0, 5).map((e, i) => {
+                  const st = TRADE_STATUS[e.status] || TRADE_STATUS.pending
+                  const fromColor = PLANET_COLORS[e.from] || '#888'
+                  const toColor   = PLANET_COLORS[e.to] || '#888'
+                  const fromName  = e.from.charAt(0).toUpperCase() + e.from.slice(1)
+                  const toName    = e.to.charAt(0).toUpperCase() + e.to.slice(1)
                   return (
-                    <div key={c.id} style={{
-                      borderRadius: 8,
-                      padding: '8px 10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      background: `linear-gradient(90deg, ${col}09 0%, transparent 70px), rgba(255,255,255,0.02)`,
-                      border: `1px solid ${col}33`,
-                      position: 'relative',
-                      overflow: 'hidden',
-                    }}>
-                      <PlanetOrb name={c.name} color={col} size={32} glow={false} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p className="font-display font-bold tracking-wide mb-1" style={{ fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: col, textShadow: `0 0 8px ${col}60` }}>
-                          {c.name}
-                        </p>
-                        <div style={{ display: 'flex' }}>
-                          {(['food', 'environment', 'wealth'] as const).map((r, idx) => (
-                            <div key={r} style={{
-                              flex: 1, textAlign: 'center',
-                              borderRight: idx < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                              padding: '0 4px',
-                            }}>
-                              <div className="font-display font-bold" style={{ fontSize: '0.9rem', color: col, lineHeight: 1 }}>{c[r]}</div>
-                              <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.22)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 1 }}>
-                                {RES_LABELS[r].slice(0, 3)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                    <div key={i} style={{ display:'grid', gridTemplateColumns:'42px 1fr 70px', gap:10, alignItems:'center', padding:'7px 0', borderBottom:`1px solid ${B_LINE}` }}>
+                      <div style={{ fontFamily:B_MONO, fontSize:10, color:B_FAINT, letterSpacing:'0.1em' }}>{e.tStr}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0, fontFamily:B_SERIF, fontSize:13, fontStyle:'italic', color:B_INK, letterSpacing:'-0.005em' }}>
+                        <PlanetOrb name={e.from} color={fromColor} size={14}/>
+                        <span style={{ whiteSpace:'nowrap' }}>{fromName}</span>
+                        <span style={{ fontFamily:B_MONO, fontSize:10, color:B_GOLD }}>{e.give.n}{RES_GLYPH[e.give.r]||e.give.r}</span>
+                        <span style={{ fontFamily:B_MONO, fontSize:11, color:B_FAINT }}>→</span>
+                        <span style={{ fontFamily:B_MONO, fontSize:10, color:B_GOLD }}>{e.take.n}{RES_GLYPH[e.take.r]||e.take.r}</span>
+                        <PlanetOrb name={e.to} color={toColor} size={14}/>
+                        <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{toName}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-                        {dots.map((d, i) => (
-                          <div key={i} style={{
-                            width: 7, height: 7, borderRadius: '50%',
-                            background: d === 'green' ? '#22c55e' : d === 'amber' ? '#fbbf24' : d === 'red' ? 'var(--red-raid)' : 'rgba(255,255,255,0.15)',
-                            boxShadow: d === 'green' ? '0 0 5px #22c55e' : d === 'amber' ? '0 0 5px #fbbf24' : d === 'red' ? '0 0 5px var(--red-raid)' : 'none',
-                          }} />
-                        ))}
-                      </div>
+                      <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:st.color, textAlign:'right' }}>{st.label}</div>
                     </div>
                   )
                 })}
               </div>
-              {/* Pact dot legend */}
-              <div style={{ display:'flex', gap:16, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(155,89,182,0.12)', flexWrap:'wrap' }}>
-                {[
-                  { color: '#22c55e', shadow: '#22c55e', label: 'Pact met' },
-                  { color: '#fbbf24', shadow: '#fbbf24', label: 'At risk' },
-                  { color: 'var(--red-raid)', shadow: '#ff3b3b', label: 'Failed' },
-                  { color: 'rgba(255,255,255,0.18)', shadow: 'none', label: 'Pending' },
-                ].map(({ color, shadow, label }) => (
-                  <div key={label} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                    <div style={{ width:9, height:9, borderRadius:'50%', background:color, boxShadow: shadow !== 'none' ? `0 0 5px ${shadow}` : 'none' }} />
-                    <span className="font-display" style={{ fontSize:'0.6rem', letterSpacing:'1px', color:'rgba(200,180,255,0.55)' }}>{label}</span>
-                  </div>
-                ))}
-              </div>
+            </div>
+
+            {/* Action row */}
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => phaseAction('NEXT_PHASE')} style={btnB(true)}>Advance phase</button>
+              <button onClick={() => phaseAction('NEXT_YEAR')} style={btnB(false)}>
+                Open chapter {CHAPTER_ROMAN[Math.min(session.year, 4)]}
+              </button>
             </div>
           </div>
 
-          {/* ── Right: Constellation + QR + Trade Feed ── */}
-          <div style={{ display:'flex', flexDirection:'column', gap:8, minHeight:0, overflow:'hidden' }}>
-            {/* Editorial Constellation */}
-            <div className="sp-card p-3" style={{ display:'flex', flexDirection:'column', alignItems:'center', overflow:'hidden' }}>
-              <EditorialConstellation
-                countries={session.countries.map(c => ({ id: c.id, name: c.name, color: c.color }))}
-                audit={session.phase === 'PROMISE_CHECK'}
-                reclaimedSet={new Set(
-                  session.phase === 'PROMISE_CHECK'
-                    ? promiseChecks.filter(pc => pc.passed).map(pc => pc.countryId)
-                    : session.countries.map(c => c.id)
-                )}
-              />
-            </div>
-
-            {/* QR Code */}
-            <div className="sp-card p-4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              {qrUrl && <img src={qrUrl} alt="Join QR" className="w-32 h-32 rounded-lg mb-2" style={{ display: 'block' }} />}
-              <p className="font-display text-xs tracking-widest" style={{ color: 'var(--cyan)' }}>SCAN TO JOIN</p>
-              <p className="text-xs text-slate-600 mt-1">/join</p>
-            </div>
-
-            {/* Trade Feed */}
-            <div className="sp-card" style={{ padding:'10px 12px', flex:1, minHeight:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12,5 19,12 12,19"/>
-                </svg>
-                <p className="font-display text-xs tracking-widest text-slate-500">TRADE ACTIVITY LOG</p>
-              </div>
-              <div style={{ flex:1, minHeight:0, overflowY:'auto', display:'flex', flexDirection:'column', gap:6, paddingRight:4 }}>
-                {tradeFeed.length === 0 && (
-                  <p className="font-display text-xs tracking-widest text-slate-700">MONITORING CHANNELS...</p>
-                )}
-                {tradeFeed.map((t) => (
-                  <div key={t.id} className="trade-feed-entry p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}>
-                    <p className="font-display" style={{
-                      fontSize: '0.68rem', letterSpacing: '1px', marginBottom: 3,
-                      color: t.status === 'ACCEPTED' ? '#4fc3f7' : t.status === 'REJECTED' ? '#ff7875' : '#c9a9ff',
-                    }}>
-                      {t.status === 'ACCEPTED' ? '✓' : t.status === 'REJECTED' ? '✗' : '⏳'} {t.senderName} → {t.receiverName}
-                    </p>
-                    <p style={{ fontSize: '0.72rem', color: 'rgba(220,200,255,0.6)' }}>
-                      {t.offerAmount} {RES_ICONS[t.offerResource]} {RES_LABELS[t.offerResource]} ↔ {t.requestAmount} {RES_ICONS[t.requestResource]} {RES_LABELS[t.requestResource]}
-                    </p>
+          {/* ── RIGHT COLUMN ── */}
+          <div style={{ padding:'16px 40px', display:'flex', flexDirection:'column', gap:8, overflow:'hidden' }}>
+            {isPactCheck ? (
+              // Pact ledger mode
+              <>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+                  <div>
+                    <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>PACTS · BY CHAPTER V</div>
+                    <div style={{ fontFamily:B_SERIF, fontSize:22, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic', marginTop:2 }}>The ledger.</div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div style={{ fontFamily:B_MONO, fontSize:11, letterSpacing:'0.2em', color:B_GOLD, paddingBottom:4 }}>
+                    KEPT · PROGRESS
+                  </div>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
+                  {pactProgress.map(({ country: c, pid, pct, due, met }, i) => {
+                    const allMet = due > 0 && met === due
+                    const fail   = due > 0 && pct < 0.5
+                    const barColor = allMet ? B_GOOD : fail ? B_BAD : B_GOLD
+                    return (
+                      <div key={c.id} style={{ display:'grid', gridTemplateColumns:'22px 1fr 168px',
+                        alignItems:'center', gap:10, flex:1, minHeight:0, padding:'2px 0',
+                        borderTop: i===0 ? `1px solid ${B_LINE}` : 'none',
+                        borderBottom: `1px solid ${B_LINE}` }}>
+                        <div style={{ fontFamily:B_SERIF, fontSize:14, color:B_FAINT, fontStyle:'italic' }}>{String(i+1).padStart(2,'0')}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                          <PlanetOrb name={c.name} color={c.color} size={36}/>
+                          <div style={{ minWidth:0, flex:1 }}>
+                            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:8 }}>
+                              <div style={{ fontFamily:B_SERIF, fontSize:19, fontWeight:400, letterSpacing:'-0.01em' }}>
+                                {c.name.charAt(0)+c.name.slice(1).toLowerCase()}
+                              </div>
+                              <div style={{ fontFamily:B_MONO, fontSize:11, letterSpacing:'0.1em', color:barColor }}>
+                                {met}/{due} KEPT
+                              </div>
+                            </div>
+                            <div style={{ marginTop:3, height:4, background:'rgba(244,239,229,0.1)', position:'relative' }}>
+                              <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${Math.round(pct*100)}%`, background:barColor }}/>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontFamily:B_MONO, fontSize:14, fontWeight:500, textAlign:'right', letterSpacing:'0.15em', color:barColor }}>
+                          {allMet ? 'KEPT' : fail ? 'FAILING' : 'IN-PROG'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Spacer aligns with action row on the left */}
+                <div style={{ height:46, flexShrink:0 }}/>
+              </>
+            ) : (
+              // Standings mode
+              <>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+                  <div>
+                    <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>THE TEN</div>
+                    <div style={{ fontFamily:B_SERIF, fontSize:22, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic', marginTop:2 }}>The standings.</div>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,56px)', fontFamily:B_MONO, fontSize:11, letterSpacing:'0.2em', color:B_FAINT, paddingBottom:4, textAlign:'right' }}>
+                    <span>NRG</span><span>OXG</span><span>CRW</span>
+                  </div>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
+                  {session.countries.map((c, i) => {
+                    const pid = getPlanetId(c.name)
+                    return (
+                      <div key={c.id} style={{ display:'grid', gridTemplateColumns:'22px 1fr 168px',
+                        alignItems:'center', gap:10, flex:1, minHeight:0, padding:'2px 0',
+                        borderTop: i===0 ? `1px solid ${B_LINE}` : 'none',
+                        borderBottom: `1px solid ${B_LINE}` }}>
+                        <div style={{ fontFamily:B_SERIF, fontSize:14, color:B_FAINT, fontStyle:'italic' }}>{String(i+1).padStart(2,'0')}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                          <PlanetOrb name={c.name} color={c.color} size={36}/>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontFamily:B_SERIF, fontSize:19, fontWeight:400, letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                              {c.name.charAt(0)+c.name.slice(1).toLowerCase()}
+                            </div>
+                            <div style={{ fontFamily:B_SERIF, fontSize:12, color:B_FAINT, fontStyle:'italic', marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                              {PLANET_MOTTOS[pid] || '—'}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,56px)', fontFamily:B_MONO, fontSize:16, fontWeight:500, textAlign:'right' }}>
+                          <span style={{ color:B_INK }}>{c.food}</span>
+                          <span style={{ color:B_INK }}>{c.environment}</span>
+                          <span style={{ color:B_INK }}>{c.wealth}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Spacer aligns with action row on the left */}
+                <div style={{ height:46, flexShrink:0 }}/>
+              </>
+            )}
           </div>
         </div>
+
+        {/* ── Footer ── */}
+        <div style={{ position:'absolute', bottom:14, left:40, right:40, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <button onClick={async () => {
+            if (!confirm('Reset session? This clears all planet picks, trades, and game state. Players will need to rejoin.')) return
+            const res = await fetch('/api/session/new', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: 'admin123' }) })
+            if (res.ok) {
+              const fresh = await res.json()
+              localStorage.setItem('sessionId', fresh.id)
+              window.location.reload()
+            } else { alert('Failed to reset session') }
+          }}
+            style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:'#e87a7a', background:'transparent', border:`1px solid rgba(232,122,122,0.25)`, padding:'4px 12px', cursor:'pointer' }}>
+            ↺ RESET SESSION
+          </button>
+          <button onClick={() => setQrOpen(o => !o)}
+            style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'4px 12px', cursor:'pointer' }}>
+            {qrOpen ? 'HIDE QR' : 'SCAN TO JOIN ▾'}
+          </button>
+        </div>
+
+        {/* QR popup */}
+        {qrOpen && (
+          <div style={{ position:'absolute', bottom:42, right:40, background:'#07021a', border:`1px solid ${B_LINE}`, padding:20, boxShadow:'0 0 40px rgba(232,200,122,0.12)', zIndex:30 }}>
+            {qrUrl
+              ? <img src={qrUrl} alt="Join QR" style={{ display:'block', width:160, height:160 }}/>
+              : <div style={{ width:160, height:160, display:'flex', alignItems:'center', justifyContent:'center', color:B_FAINT }}>…</div>}
+            <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_GOLD, textAlign:'center', marginTop:10 }}>
+              {typeof window !== 'undefined' ? `${window.location.origin}/join` : ''}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

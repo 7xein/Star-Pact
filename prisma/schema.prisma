@@ -34,11 +34,13 @@ model Country {
   kushBalls   Int
   relationsData String
   promisesData  String
+  claimedBy     String?
   tradesAsSender   Trade[] @relation("TradeSender")
   tradesAsReceiver Trade[] @relation("TradeReceiver")
   attackingScandals Scandal[] @relation("ScandalAttacker")
   defendingScandals Scandal[] @relation("ScandalDefender")
   scandalAlliances  ScandalAlliance[]
+  scandalVolleys    ScandalVolley[]
   debriefResponses  DebriefResponse[]
   promiseChecks     PromiseCheck[]
 }
@@ -71,11 +73,17 @@ model Scandal {
   defender        Country  @relation("ScandalDefender", fields: [defenderId], references: [id])
   resource        String
   amount          Int
-  status          String   @default("OPEN")
-  outcome         String?
+  status          String   @default("OPEN")   // OPEN | RESOLVED
+  outcome         String?                      // ATTACKER_WINS | DEFENDER_WINS
   windowEndsAt    DateTime
   year            Int
+  // Theater of Voids beat system
+  beat            String   @default("ALLIANCE")  // ALLIANCE | VOLLEY | HIT | RESOLUTION | CLOSED
+  beatEndsAt      DateTime?
+  hitSide         String?                        // STRIKER | SHIELDER (the side that LOST)
+  currentRound    Int      @default(1)
   alliances       ScandalAlliance[]
+  volleys         ScandalVolley[]
   createdAt       DateTime @default(now())
 }
 
@@ -85,7 +93,18 @@ model ScandalAlliance {
   scandal    Scandal @relation(fields: [scandalId], references: [id])
   countryId  String
   country    Country @relation(fields: [countryId], references: [id])
-  side       String
+  side       String  // ATTACKER | DEFENDER
+}
+
+model ScandalVolley {
+  id        String   @id @default(cuid())
+  scandalId String
+  scandal   Scandal  @relation(fields: [scandalId], references: [id])
+  round     Int
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id])
+  side      String   // STRIKER | SHIELDER
+  firedAt   DateTime @default(now())
 }
 
 model PromiseCheck {

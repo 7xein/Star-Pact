@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { broadcastUpdate } from '@/lib/sse'
 
-const PHASES = ['TRADING', 'PROMISE_CHECK', 'SCANDAL', 'YEAR_END']
+const PHASES = ['TRADING', 'SCANDAL', 'PROMISE_CHECK', 'YEAR_END']
 
 export async function POST(req: Request) {
   const body = await req.json()
@@ -57,26 +57,23 @@ export async function POST(req: Request) {
 async function runPromiseCheck(sessionId: string, year: number) {
   const countries = await prisma.country.findMany({ where: { sessionId } })
 
+  const records: Array<{
+    sessionId: string; countryId: string; year: number
+    resource: string; required: number; actual: number; passed: boolean
+  }> = []
+
   for (const country of countries) {
     const promises = JSON.parse(country.promisesData) as Array<{ resource: string; target: number; byYear: number }>
-
     for (const promise of promises) {
       if (promise.byYear === year) {
         const actual = country[promise.resource as keyof typeof country] as number
         const passed = actual >= promise.target
-
-        await prisma.promiseCheck.create({
-          data: {
-            sessionId,
-            countryId: country.id,
-            year,
-            resource: promise.resource,
-            required: promise.target,
-            actual,
-            passed
-          }
-        })
+        records.push({ sessionId, countryId: country.id, year, resource: promise.resource, required: promise.target, actual, passed })
       }
     }
+  }
+
+  if (records.length > 0) {
+    await prisma.promiseCheck.createMany({ data: records })
   }
 }

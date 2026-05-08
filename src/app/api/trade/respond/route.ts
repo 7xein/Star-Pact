@@ -54,6 +54,16 @@ export async function POST(req: Request) {
     return { trade: updatedTrade, sender: updatedSender, receiver: updatedReceiver }
   })
 
+  // Broadcast trade accepted + refresh full session so standings update
   broadcastUpdate(trade.sessionId, { type: 'TRADE_ACCEPTED', ...result })
+
+  const freshSession = await prisma.session.findUnique({
+    where: { id: trade.sessionId },
+    include: { countries: true },
+  })
+  if (freshSession) {
+    broadcastUpdate(trade.sessionId, { type: 'SESSION_UPDATE', session: freshSession })
+  }
+
   return NextResponse.json(result)
 }

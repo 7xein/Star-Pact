@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import PlanetOrb from '@/components/PlanetOrb'
 
@@ -9,6 +9,7 @@ interface Country {
   name: string
   color: string
   motto: string
+  claimedBy: string | null
 }
 
 interface Session {
@@ -18,8 +19,8 @@ interface Session {
 
 const B_BG    = '#0b0a14'
 const B_INK   = '#f4efe5'
-const B_FAINT = 'rgba(244,239,229,0.35)'
-const B_LINE  = 'rgba(244,239,229,0.12)'
+const B_FAINT = 'rgba(244,239,229,0.55)'
+const B_LINE  = 'rgba(244,239,229,0.14)'
 const B_GOLD  = '#e8c87a'
 const B_SERIF = '"Space Grotesk", "Century Gothic", "Futura", sans-serif'
 const B_MONO  = '"JetBrains Mono", "Courier New", monospace'
@@ -27,6 +28,9 @@ const B_SANS  = '"Inter Tight", "Inter", system-ui, sans-serif'
 
 export default function JoinPage() {
   const [session, setSession] = useState<Session | null>(null)
+  const [claiming, setClaiming] = useState(false)
+  const [playerName, setPlayerName] = useState('')
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -36,10 +40,58 @@ export default function JoinPage() {
       .catch(console.error)
   }, [])
 
-  const join = (country: Country) => {
-    document.cookie = `countryId=${country.id}; path=/; max-age=86400`
-    document.cookie = `sessionId=${session?.id}; path=/; max-age=86400`
-    router.push('/play')
+  // Listen for real-time updates so claimed planets appear instantly
+  useEffect(() => {
+    if (!session) return
+    const es = new EventSource(`/api/sse?sessionId=${session.id}`)
+    es.onmessage = (e) => {
+      const data = JSON.parse(e.data)
+      if (data.type === 'SESSION_UPDATE' || data.type === 'SESSION_CREATED') {
+        setSession(data.session)
+      }
+    }
+    // Also poll as fallback
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch('/api/session')
+        if (res.ok) {
+          const fresh = await res.json()
+          setSession(fresh)
+        }
+      } catch { /* ignore */ }
+    }, 3000)
+    return () => { es.close(); clearInterval(poll) }
+  }, [session?.id])
+
+  const join = async (country: Country) => {
+    if (!session || claiming || country.claimedBy) return
+    const trimmed = playerName.trim()
+    if (!trimmed) {
+      nameInputRef.current?.focus()
+      nameInputRef.current?.classList.add('shake')
+      setTimeout(() => nameInputRef.current?.classList.remove('shake'), 500)
+      return
+    }
+    setClaiming(true)
+    try {
+      const res = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.id, countryId: country.id, playerName: trimmed }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        alert(err.error || 'Could not claim planet')
+        setClaiming(false)
+        return
+      }
+      document.cookie = `countryId=${country.id}; path=/; max-age=86400`
+      document.cookie = `sessionId=${session.id}; path=/; max-age=86400`
+      router.push('/play')
+    } catch {
+      alert('Network error — try again')
+      setClaiming(false)
+    }
   }
 
   if (!session) return (
@@ -48,7 +100,7 @@ export default function JoinPage() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
           <PlanetOrb name="Aqualis" color="#3b82f6" size={48} pulse />
         </div>
-        <p style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: B_FAINT, textTransform: 'uppercase' }}>
+        <p style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, textTransform: 'uppercase' }}>
           Connecting to Federation…
         </p>
       </div>
@@ -73,7 +125,7 @@ export default function JoinPage() {
 
         {/* Header */}
         <div style={{ padding: '32px 22px 20px', textAlign: 'center' }}>
-          <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: B_FAINT, textTransform: 'uppercase', marginBottom: 8 }}>
+          <div style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, textTransform: 'uppercase', marginBottom: 8 }}>
             Nebula Alliance
           </div>
           <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
@@ -84,65 +136,109 @@ export default function JoinPage() {
           </div>
         </div>
 
+        {/* Name input */}
+        <div style={{ padding: '0 22px 16px' }}>
+          <label style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+            Your Name
+          </label>
+          <input
+            ref={nameInputRef}
+            type="text"
+            value={playerName}
+            onChange={e => setPlayerName(e.target.value)}
+            placeholder="Enter your name to join…"
+            maxLength={24}
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              background: 'rgba(244,239,229,0.06)',
+              border: `1px solid ${B_LINE}`,
+              borderRadius: 6,
+              color: B_INK,
+              fontFamily: B_SERIF,
+              fontSize: 16,
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              boxSizing: 'border-box',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = B_GOLD }}
+            onBlur={e => { e.currentTarget.style.borderColor = B_LINE }}
+          />
+          <style>{`
+            @keyframes shake {
+              0%, 100% { transform: translateX(0); }
+              20%, 60% { transform: translateX(-6px); }
+              40%, 80% { transform: translateX(6px); }
+            }
+            .shake { animation: shake 0.4s ease-in-out; border-color: #e87a7a !important; }
+          `}</style>
+        </div>
+
         {/* Divider */}
         <div style={{ height: 1, background: B_LINE, margin: '0 0 4px' }}/>
 
         {/* Planet list */}
         <div>
-          {session.countries.map((c, i) => (
-            <button
-              key={c.id}
-              onClick={() => join(c)}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'auto 1fr auto',
-                gap: 14,
-                alignItems: 'center',
-                padding: '14px 22px',
-                width: '100%',
-                textAlign: 'left',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: `1px solid ${B_LINE}`,
-                cursor: 'pointer',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = `${c.color}0d`)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <PlanetOrb name={c.name} color={c.color} size={44} sigil={c.name[0]} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{
-                  fontFamily: B_SERIF,
-                  fontSize: 18,
-                  fontWeight: 400,
-                  letterSpacing: '-0.01em',
-                  color: B_INK,
-                  marginBottom: 2,
-                }}>
-                  {c.name.charAt(0) + c.name.slice(1).toLowerCase()}
+          {session.countries.map((c, i) => {
+            const taken = !!c.claimedBy
+            return (
+              <button
+                key={c.id}
+                onClick={() => join(c)}
+                disabled={taken || claiming}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto 1fr auto',
+                  gap: 14,
+                  alignItems: 'center',
+                  padding: '14px 22px',
+                  width: '100%',
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `1px solid ${B_LINE}`,
+                  cursor: taken ? 'not-allowed' : 'pointer',
+                  transition: 'background 0.15s, opacity 0.3s',
+                  opacity: taken ? 0.4 : 1,
+                  filter: taken ? 'saturate(0.3)' : 'none',
+                }}
+                onMouseEnter={e => { if (!taken) e.currentTarget.style.background = `${c.color}0d` }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                <PlanetOrb name={c.name} color={c.color} size={44} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: B_SERIF,
+                    fontSize: 18,
+                    fontWeight: 400,
+                    letterSpacing: '-0.01em',
+                    color: taken ? B_FAINT : B_INK,
+                    marginBottom: 2,
+                  }}>
+                    {c.name.charAt(0) + c.name.slice(1).toLowerCase()}
+                  </div>
+                  <div style={{
+                    fontFamily: B_SERIF,
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: B_FAINT,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {taken ? `Claimed by ${c.claimedBy}` : c.motto}
+                  </div>
                 </div>
-                <div style={{
-                  fontFamily: B_SERIF,
-                  fontSize: 12,
-                  fontWeight: 400,
-                  color: B_FAINT,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {c.motto}
+                <div style={{ fontFamily: B_MONO, fontSize: 11, color: taken ? B_FAINT : B_GOLD, letterSpacing: '0.2em', flexShrink: 0 }}>
+                  {taken ? 'TAKEN' : `${String(i + 1).padStart(2, '0')} →`}
                 </div>
-              </div>
-              <div style={{ fontFamily: B_MONO, fontSize: 10, color: B_GOLD, letterSpacing: '0.2em', flexShrink: 0 }}>
-                {String(i + 1).padStart(2, '0')} →
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
 
         {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: 24, fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.3em', color: 'rgba(244,239,229,0.2)', textTransform: 'uppercase' }}>
+        <div style={{ textAlign: 'center', marginTop: 24, fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(244,239,229,0.3)', textTransform: 'uppercase' }}>
           Federation Intake Terminal v2.0
         </div>
       </div>

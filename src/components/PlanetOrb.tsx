@@ -9,6 +9,7 @@ interface PlanetOrbProps {
   glow?: boolean
   sigil?: string
   pulse?: boolean
+  lit?: boolean
 }
 
 interface PlanetArt {
@@ -146,8 +147,13 @@ const PLANET_ART: Record<string, PlanetArt> = {
   },
 }
 
-export default function PlanetOrb({ name, color, size = 120, glow = true, sigil, pulse = false }: PlanetOrbProps) {
-  const art = PLANET_ART[name]
+// ID-based lookup: "ignis" → "Ignis Prime", "aqualis" → "Aqualis", etc.
+const ID_TO_NAME: Record<string, string> = Object.fromEntries(
+  Object.keys(PLANET_ART).map(k => [k.split(' ')[0].toLowerCase(), k])
+)
+
+export default function PlanetOrb({ name, color, size = 120, glow = true, sigil, pulse = false, lit = true }: PlanetOrbProps) {
+  const art = PLANET_ART[name] || PLANET_ART[ID_TO_NAME[name.toLowerCase()] || '']
   const showRing = !!(art?.ring)
   const ringTilt = art?.ringTilt ?? 0
   const c = art?.base ?? color
@@ -219,10 +225,10 @@ export default function PlanetOrb({ name, color, size = 120, glow = true, sigil,
         <g clipPath={`url(#clip-${uid})`}>
           {art?.paint}
         </g>
-        <circle cx="0" cy="0" r={r} fill={`url(#shade-${uid})`}/>
-        <circle cx="0" cy="0" r={r} fill={`url(#rim-${uid})`}/>
-        <circle cx="0" cy="0" r={r} fill={`url(#hi-${uid})`}/>
-        <circle cx="0" cy="0" r={r} fill={`url(#glint-${uid})`}/>
+        {lit && <circle cx="0" cy="0" r={r} fill={`url(#shade-${uid})`}/>}
+        {lit && <circle cx="0" cy="0" r={r} fill={`url(#rim-${uid})`}/>}
+        {lit && <circle cx="0" cy="0" r={r} fill={`url(#hi-${uid})`}/>}
+        {lit && <circle cx="0" cy="0" r={r} fill={`url(#glint-${uid})`}/>}
       </svg>
 
       {/* Ring — front half */}
