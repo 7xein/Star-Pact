@@ -133,6 +133,7 @@ export default function PlayPage() {
   const prevResRef = useRef<Record<string, number>>({})
   const [activeScandal, setActiveScandal] = useState<ScandalFull | null>(null)
   const advancingBeatRef = useRef(false)
+  const notifiedTradeIdsRef = useRef<Set<string>>(new Set())
 
   // Trade modal
   const [showTradeModal, setShowTradeModal] = useState(false)
@@ -295,11 +296,23 @@ export default function PlayPage() {
           const me = fresh.countries.find((c: Country) => c.id === cid)
           if (me) updateMyCountry(me)
         }
-        // Refresh pending trades
+        // Refresh trades (incoming + resolved)
         const tradeRes = await fetch(`/api/trade?sessionId=${sid}&countryId=${cid}`)
         if (tradeRes.ok) {
-          const trades = await tradeRes.json()
-          setIncomingTrades(trades)
+          const data = await tradeRes.json()
+          setIncomingTrades(data.incoming || [])
+          // Notify about resolved trades we sent
+          for (const t of (data.resolved || [])) {
+            if (!notifiedTradeIdsRef.current.has(t.id)) {
+              notifiedTradeIdsRef.current.add(t.id)
+              const name = t.receiverName || 'Unknown'
+              if (t.status === 'ACCEPTED') {
+                showNotif(`${name} accepted your trade offer.`)
+              } else {
+                showNotif(`${name} rejected your trade offer.`, 'error')
+              }
+            }
+          }
         }
         // Refresh active scandals
         const scanRes = await fetch(`/api/scandal?sessionId=${sid}`)
@@ -349,6 +362,7 @@ export default function PlayPage() {
       body: JSON.stringify({ tradeId, accept }),
     })
     setIncomingTrades(prev => prev.filter(t => t.id !== tradeId))
+    showNotif(accept ? 'Trade accepted.' : 'Trade rejected.')
   }
 
   const submitEscalation = async () => {

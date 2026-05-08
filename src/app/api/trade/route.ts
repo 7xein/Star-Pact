@@ -7,16 +7,25 @@ export async function GET(req: NextRequest) {
   const countryId = req.nextUrl.searchParams.get('countryId')
   if (!sessionId || !countryId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
 
-  const trades = await prisma.trade.findMany({
+  // Pending trades where I'm the receiver
+  const incoming = await prisma.trade.findMany({
     where: { sessionId, receiverId: countryId, status: 'PENDING' },
     include: { sender: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(trades.map(t => ({
-    ...t,
-    senderName: t.sender.name,
-  })))
+  // Recently resolved trades where I'm the sender (last 30 seconds)
+  const since = new Date(Date.now() - 30_000)
+  const resolved = await prisma.trade.findMany({
+    where: { sessionId, senderId: countryId, status: { in: ['ACCEPTED', 'REJECTED'] }, createdAt: { gte: since } },
+    include: { receiver: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return NextResponse.json({
+    incoming: incoming.map(t => ({ ...t, senderName: t.sender.name })),
+    resolved: resolved.map(t => ({ ...t, receiverName: t.receiver.name })),
+  })
 }
 
 export async function POST(req: Request) {
