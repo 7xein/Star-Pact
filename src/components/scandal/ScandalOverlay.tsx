@@ -163,6 +163,7 @@ interface Props {
   onFire: () => Promise<void>
   onJoinAlliance: (side: 'ATTACKER' | 'DEFENDER') => Promise<void>
   onDismiss?: () => void
+  clockOffset?: number // serverTime - clientTime in ms, for timer sync
 }
 
 // ── Timer constants ──────────────────────────────────────
@@ -170,7 +171,7 @@ const ALLIANCE_DURATION = 20
 const VOLLEY_DURATION = 10
 
 // ── Main Overlay ──────────────────────────────────────────
-export default function ScandalOverlay({ scandal, myCountry, session, onFire, onJoinAlliance, onDismiss }: Props) {
+export default function ScandalOverlay({ scandal, myCountry, session, onFire, onJoinAlliance, onDismiss, clockOffset = 0 }: Props) {
   const [remaining, setRemaining] = useState(0)
   const [firedThisRound, setFiredThisRound] = useState(false)
   const [allianceChosen, setAllianceChosen] = useState(false)
@@ -197,17 +198,18 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
     setAllianceChosen(!!scandal.alliances.find(a => a.countryId === myCountry.id) || isAttacker || isDefender)
   }, [scandal.alliances, isAttacker, isDefender, myCountry.id])
 
-  // Countdown clock
+  // Countdown clock (adjusted for server/client clock difference)
   useEffect(() => {
     const tick = () => {
       if (!scandal.beatEndsAt) { setRemaining(0); return }
-      const diff = (new Date(scandal.beatEndsAt).getTime() - Date.now()) / 1000
+      const serverNow = Date.now() + clockOffset
+      const diff = (new Date(scandal.beatEndsAt).getTime() - serverNow) / 1000
       setRemaining(Math.max(0, diff))
     }
     tick()
-    const id = setInterval(tick, 200)
+    const id = setInterval(tick, 100) // 100ms for smoother countdown
     return () => clearInterval(id)
-  }, [scandal.beatEndsAt])
+  }, [scandal.beatEndsAt, clockOffset])
 
   const handleFire = async () => {
     if (firing || firedThisRound || myCountry.kushBalls < 1) return

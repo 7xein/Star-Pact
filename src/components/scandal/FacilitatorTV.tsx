@@ -83,24 +83,26 @@ interface Country { id: string; name: string; color: string }
 interface Props {
   scandal: ScandalFull
   session: { countries: Country[]; year: number }
+  clockOffset?: number // serverTime - clientTime in ms
 }
 
-export default function FacilitatorTV({ scandal, session }: Props) {
+export default function FacilitatorTV({ scandal, session, clockOffset = 0 }: Props) {
   const [remaining, setRemaining] = useState(0)
   const rafRef = useRef<number | undefined>(undefined)
 
-  // Wall-clock countdown
+  // Wall-clock countdown (adjusted for server/client clock difference)
   useEffect(() => {
     const tick = () => {
       if (scandal.beatEndsAt) {
-        const diff = (new Date(scandal.beatEndsAt).getTime() - Date.now()) / 1000
+        const serverNow = Date.now() + clockOffset
+        const diff = (new Date(scandal.beatEndsAt).getTime() - serverNow) / 1000
         setRemaining(Math.max(0, diff))
       }
     }
     tick()
-    const id = setInterval(tick, 200)
+    const id = setInterval(tick, 100) // 100ms for smoother countdown
     return () => clearInterval(id)
-  }, [scandal.beatEndsAt])
+  }, [scandal.beatEndsAt, clockOffset])
 
   // Animation clock
   const [clock, setClock] = useState(0)
@@ -209,7 +211,7 @@ export default function FacilitatorTV({ scandal, session }: Props) {
 
             {/* Countdown ring */}
             <div style={{ textAlign: 'center' }}>
-              <CountdownRing remaining={remaining} total={10} size={180} color={TV.gold} label="PICK A SIDE" />
+              <CountdownRing remaining={remaining} total={20} size={180} color={TV.gold} label="PICK A SIDE" />
               <div style={{ fontFamily: TV.mono, fontSize: 10, letterSpacing: '0.3em', color: TV.gold, marginTop: 10 }}>
                 {RES_LABELS[scandal.resource]?.toUpperCase()} ×{scandal.amount}
               </div>
@@ -303,10 +305,10 @@ export default function FacilitatorTV({ scandal, session }: Props) {
 
           {/* Countdown rings */}
           <div style={{ position: 'absolute', top: '22%', left: '8%' }}>
-            <CountdownRing remaining={remaining} total={5} size={100} color={TV.red} label="VOLLEY" />
+            <CountdownRing remaining={remaining} total={10} size={100} color={TV.red} label="VOLLEY" />
           </div>
           <div style={{ position: 'absolute', top: '22%', right: '8%' }}>
-            <CountdownRing remaining={remaining} total={5} size={100} color={TV.blue} label="VOLLEY" />
+            <CountdownRing remaining={remaining} total={10} size={100} color={TV.blue} label="VOLLEY" />
           </div>
 
           {/* Planets */}

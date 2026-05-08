@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(scandals)
+  return NextResponse.json(scandals, {
+    headers: { 'X-Server-Time': new Date().toISOString() },
+  })
 }
 
 export async function POST(req: Request) {

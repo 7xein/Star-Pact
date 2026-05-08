@@ -294,6 +294,7 @@ export default function FacilitatorDashboard() {
   const sessionIdRef    = useRef<string | null>(null)
   const raidAlertTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const advancingBeatRef = useRef(false)
+  const clockOffsetRef = useRef(0) // serverTime - clientTime in ms
 
   const loadPromiseChecks = useCallback(async (sessionId: string, year: number) => {
     const res = await fetch(`/api/promises?sessionId=${sessionId}&year=${year}`)
@@ -425,6 +426,8 @@ export default function FacilitatorDashboard() {
         // Also poll scandals
         const scanRes = await fetch(`/api/scandal?sessionId=${id}`)
         if (scanRes.ok) {
+          const serverTimeStr = scanRes.headers.get('X-Server-Time')
+          if (serverTimeStr) clockOffsetRef.current = new Date(serverTimeStr).getTime() - Date.now()
           const scandals = await scanRes.json()
           if (scandals.length > 0) {
             const sc = scandals[0] as ScandalFull
@@ -467,12 +470,14 @@ export default function FacilitatorDashboard() {
       advancingBeatRef.current = false
     }
 
-    const diff = new Date(tvScandal.beatEndsAt!).getTime() - Date.now()
+    const serverNow = Date.now() + clockOffsetRef.current
+    const diff = new Date(tvScandal.beatEndsAt!).getTime() - serverNow
     if (diff <= 0) { doAdvance() }
     else { timerId = setTimeout(doAdvance, diff + 100) }
 
     const fallbackId = setInterval(() => {
-      if (new Date(tvScandal.beatEndsAt!).getTime() - Date.now() <= 0) doAdvance()
+      const sNow = Date.now() + clockOffsetRef.current
+      if (new Date(tvScandal.beatEndsAt!).getTime() - sNow <= 0) doAdvance()
     }, 1000)
 
     return () => { cancelled = true; if (timerId) clearTimeout(timerId); clearInterval(fallbackId) }
@@ -544,7 +549,7 @@ export default function FacilitatorDashboard() {
 
       {/* ── Theater of Voids overlay ── */}
       {tvScandal && tvScandal.beat !== 'CLOSED' && (
-        <FacilitatorTV scandal={tvScandal} session={session}/>
+        <FacilitatorTV scandal={tvScandal} session={session} clockOffset={clockOffsetRef.current}/>
       )}
 
       {/* ── Raid alert banner ── */}

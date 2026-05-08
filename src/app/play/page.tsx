@@ -134,6 +134,7 @@ export default function PlayPage() {
   const [activeScandal, setActiveScandal] = useState<ScandalFull | null>(null)
   const advancingBeatRef = useRef(false)
   const notifiedTradeIdsRef = useRef<Set<string>>(new Set())
+  const clockOffsetRef = useRef(0) // serverTime - clientTime in ms
 
   // Trade modal
   const [showTradeModal, setShowTradeModal] = useState(false)
@@ -208,18 +209,20 @@ export default function PlayPage() {
       advancingBeatRef.current = false
     }
 
-    const diff = new Date(activeScandal.beatEndsAt!).getTime() - Date.now()
+    const serverNow = Date.now() + clockOffsetRef.current
+    const diff = new Date(activeScandal.beatEndsAt!).getTime() - serverNow
     if (diff <= 0) {
       // Already expired — advance immediately
       doAdvance()
     } else {
-      // Schedule to fire right when timer expires
-      timerId = setTimeout(doAdvance, diff + 100) // +100ms buffer for clock skew
+      // Schedule to fire right when timer expires (adjusted for clock offset)
+      timerId = setTimeout(doAdvance, diff + 100) // +100ms buffer
     }
 
     // Safety fallback: poll every 1s in case the timeout missed
     const fallbackId = setInterval(() => {
-      const remaining = new Date(activeScandal.beatEndsAt!).getTime() - Date.now()
+      const sNow = Date.now() + clockOffsetRef.current
+      const remaining = new Date(activeScandal.beatEndsAt!).getTime() - sNow
       if (remaining <= 0) doAdvance()
     }, 1000)
 
@@ -349,6 +352,11 @@ export default function PlayPage() {
         // Refresh active scandals
         const scanRes = await fetch(`/api/scandal?sessionId=${sid}`)
         if (scanRes.ok) {
+          // Compute clock offset from server time header
+          const serverTimeStr = scanRes.headers.get('X-Server-Time')
+          if (serverTimeStr) {
+            clockOffsetRef.current = new Date(serverTimeStr).getTime() - Date.now()
+          }
           const scandals = await scanRes.json()
           setActiveScandals(scandals)
           // Update active scandal if one is open, clear if none
@@ -1003,6 +1011,7 @@ export default function PlayPage() {
           onFire={fireRocket}
           onJoinAlliance={joinAllianceForScandal}
           onDismiss={() => setActiveScandal(null)}
+          clockOffset={clockOffsetRef.current}
         />
       )}
 
