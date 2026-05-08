@@ -43,7 +43,7 @@ const DB_PHASE_TO_IDX: Record<string, number> = {
   TRADING: 0, SCANDAL: 1, PROMISE_CHECK: 2, YEAR_END: 3, DEBRIEF: 3,
 }
 // Tab labels
-const PHASE_LABELS = ['Trade', 'Diplomacy', 'Target', 'Resolution']
+const PHASE_LABELS = ['Trade', 'Escalation', 'Target', 'Resolution']
 
 // ── Trade log ─────────────────────────────────────────────────
 interface TradeEntry {

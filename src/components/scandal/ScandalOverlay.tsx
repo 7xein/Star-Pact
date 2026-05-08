@@ -160,7 +160,7 @@ interface Props {
   scandal: ScandalFull
   myCountry: Country
   session: { countries: Country[] }
-  onFire: () => Promise<void>
+  onFire: () => Promise<string | null>
   onJoinAlliance: (side: 'ATTACKER' | 'DEFENDER') => Promise<void>
   onDismiss?: () => void
   clockOffset?: number // serverTime - clientTime in ms, for timer sync
@@ -177,6 +177,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
   const [allianceChosen, setAllianceChosen] = useState(false)
   const [abstained, setAbstained] = useState(false)
   const [firing, setFiring] = useState(false)
+  const [fireError, setFireError] = useState<string | null>(null)
 
   // Compute my role
   const isAttacker = scandal.attackerId === myCountry.id
@@ -191,6 +192,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
   useEffect(() => {
     const fired = scandal.volleys.some(v => v.countryId === myCountry.id && v.round === scandal.currentRound)
     setFiredThisRound(fired)
+    setFireError(null)
   }, [scandal.volleys, scandal.currentRound, myCountry.id])
 
   // Track if already chose alliance side
@@ -214,7 +216,9 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
   const handleFire = async () => {
     if (firing || firedThisRound || myCountry.kushBalls < 1) return
     setFiring(true)
-    await onFire()
+    setFireError(null)
+    const err = await onFire()
+    if (err) setFireError(err)
     setFiring(false)
   }
 
@@ -649,6 +653,19 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
             {btnLabel}
           </button>
 
+          {fireError && (
+            <div style={{
+              padding: '10px 14px',
+              background: 'rgba(255,59,59,0.15)',
+              border: '1px solid rgba(255,59,59,0.5)',
+              borderRadius: 6,
+              textAlign: 'center',
+            }}>
+              <span style={{ fontFamily: TV.mono, fontSize: 11, letterSpacing: '0.1em', color: TV.red }}>
+                {fireError.toUpperCase()}
+              </span>
+            </div>
+          )}
           {firedThisRound && (
             <div style={{ textAlign: 'center', fontFamily: TV.serif, fontSize: 12, fontStyle: 'italic', color: TV.dim }}>
               Rocket launched. Awaiting next volley…

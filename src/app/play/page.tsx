@@ -148,6 +148,8 @@ export default function PlayPage() {
   const [showEscalationModal, setShowEscalationModal] = useState(false)
   const [submittingTrade, setSubmittingTrade] = useState(false)
   const [submittingEscalation, setSubmittingEscalation] = useState(false)
+  const [tradeError, setTradeError] = useState<string | null>(null)
+  const [escalationError, setEscalationError] = useState<string | null>(null)
   const [scandalTarget, setScandalTarget] = useState('')
   const [scandalResource, setScandalResource] = useState('food')
   const [scandalAmount, setScandalAmount] = useState(1)
@@ -386,6 +388,7 @@ export default function PlayPage() {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
     if (!sid || !cid || !tradeTarget || submittingTrade) return
     setSubmittingTrade(true)
+    setTradeError(null)
     try {
       const res = await fetch('/api/trade', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -393,7 +396,7 @@ export default function PlayPage() {
       })
       if (!res.ok) {
         const err = await res.json()
-        showNotif(err.error, 'error')
+        setTradeError(err.error || 'Trade failed')
       } else {
         showNotif('Trade offer transmitted.')
         setShowTradeModal(false)
@@ -414,6 +417,7 @@ export default function PlayPage() {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
     if (!sid || !cid || !scandalTarget || submittingEscalation) return
     setSubmittingEscalation(true)
+    setEscalationError(null)
     try {
       const target = session?.countries.find(c => c.id === scandalTarget)
       const amount = target ? (target[scandalResource as keyof Country] as number) : 1
@@ -423,7 +427,7 @@ export default function PlayPage() {
       })
       if (!res.ok) {
         const err = await res.json()
-        showNotif(err.error, 'error')
+        setEscalationError(err.error || 'Escalation failed')
       } else {
         setShowEscalationModal(false)
       }
@@ -438,16 +442,16 @@ export default function PlayPage() {
     })
   }
 
-  const fireRocket = async () => {
+  const fireRocket = async (): Promise<string | null> => {
     const cid = countryIdRef.current
-    if (!cid || !activeScandal) return
+    if (!cid || !activeScandal) return null
     const res = await fetch('/api/scandal/fire', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scandalId: activeScandal.id, countryId: cid }),
     })
     if (!res.ok) {
       const err = await res.json()
-      showNotif(err.error, 'error')
+      return err.error || 'Failed to fire'
     } else {
       const data = await res.json()
       // Optimistically update local rocket count and volley list
@@ -464,6 +468,7 @@ export default function PlayPage() {
           if (scandals.length > 0) setActiveScandal(scandals[0])
         }
       }
+      return null
     }
   }
 
@@ -859,7 +864,7 @@ export default function PlayPage() {
         background: `rgba(11,10,20,0.92)`, backdropFilter: 'blur(8px)',
       }}>
         {session.phase === 'TRADING' && (
-          <button onClick={() => setShowTradeModal(true)} style={{
+          <button onClick={() => { setTradeError(null); setShowTradeModal(true) }} style={{
             flex: 1, padding: '12px 0',
             background: B_GOLD, border: 'none', color: '#0b0a14',
             fontFamily: B_SERIF, fontSize: 14, fontWeight: 600,
@@ -869,7 +874,7 @@ export default function PlayPage() {
           </button>
         )}
         {session.phase === 'SCANDAL' && failedPacts.length > 0 && (
-          <button onClick={() => { setScandalResource(failedPacts[0].resource); setShowEscalationModal(true) }} style={{
+          <button onClick={() => { setEscalationError(null); setScandalResource(failedPacts[0].resource); setShowEscalationModal(true) }} style={{
             flex: 1, padding: '12px 0',
             background: '#ff3b3b', border: 'none', color: '#fff',
             fontFamily: B_SERIF, fontSize: 14, fontWeight: 600,
@@ -974,6 +979,18 @@ export default function PlayPage() {
                 </div>
               </div>
 
+              {tradeError && (
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'rgba(255,59,59,0.12)',
+                  border: '1px solid rgba(255,59,59,0.4)',
+                  borderRadius: 6,
+                }}>
+                  <span style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.1em', color: '#ff3b3b' }}>
+                    {tradeError.toUpperCase()}
+                  </span>
+                </div>
+              )}
               <button onClick={submitTrade} disabled={!tradeTarget || submittingTrade} className="btn-cyan w-full" style={{ padding: '12px 0' }}>
                 {submittingTrade ? 'TRANSMITTING…' : 'TRANSMIT OFFER'}
               </button>
@@ -1041,6 +1058,18 @@ export default function PlayPage() {
                 </div>
               </div>
 
+              {escalationError && (
+                <div style={{
+                  padding: '10px 14px',
+                  background: 'rgba(255,59,59,0.12)',
+                  border: '1px solid rgba(255,59,59,0.4)',
+                  borderRadius: 6,
+                }}>
+                  <span style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.1em', color: '#ff3b3b' }}>
+                    {escalationError.toUpperCase()}
+                  </span>
+                </div>
+              )}
               <button onClick={submitEscalation} disabled={!scandalTarget || submittingEscalation} className="btn-red w-full" style={{ padding: '12px 0' }}>
                 {submittingEscalation ? 'LAUNCHING…' : '◤ LAUNCH'}
               </button>
