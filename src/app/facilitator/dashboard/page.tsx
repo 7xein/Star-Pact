@@ -624,87 +624,90 @@ export default function FacilitatorDashboard() {
         <div style={{ position:'relative', flex:1, minHeight:0, display:'grid', gridTemplateColumns:'1.05fr 0.95fr' }}>
 
           {/* ── LEFT COLUMN ── */}
-          <div style={{ padding:'24px 40px', borderRight:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column', gap:18, overflow:'hidden' }}>
+          <div style={{ borderRight:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            {/* Scrollable content */}
+            <div style={{ flex:1, minHeight:0, overflow:'auto', padding:'24px 40px', display:'flex', flexDirection:'column', gap:18 }}>
 
-            {/* Chapter */}
-            <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>
-              CHAPTER <span style={{ color:B_GOLD }}>{CHAPTER_WORDS[session.year - 1] || 'One'}</span><span style={{ color:B_GOLD }}>.</span> <span style={{ color:B_DIM }}>of five.</span>
-            </div>
+              {/* Chapter */}
+              <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500, flexShrink:0 }}>
+                CHAPTER <span style={{ color:B_GOLD }}>{CHAPTER_WORDS[session.year - 1] || 'One'}</span><span style={{ color:B_GOLD }}>.</span> <span style={{ color:B_DIM }}>of five.</span>
+              </div>
 
-            {/* Hairline */}
-            <div style={{ height:1, background:B_LINE }}/>
+              {/* Hairline */}
+              <div style={{ height:1, background:B_LINE, flexShrink:0 }}/>
 
-            {/* Phase name + tabs */}
-            <div>
-              <div style={{ display:'flex', alignItems:'baseline', gap:18 }}>
-                <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500, flexShrink:0 }}>PHASE</div>
-                <div style={{ fontFamily:B_SERIF, fontSize:42, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic' }}>
-                  {PHASE_LABELS[phaseIdx]}
+              {/* Phase name + tabs */}
+              <div style={{ flexShrink:0 }}>
+                <div style={{ display:'flex', alignItems:'baseline', gap:18 }}>
+                  <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500, flexShrink:0 }}>PHASE</div>
+                  <div style={{ fontFamily:B_SERIF, fontSize:42, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic' }}>
+                    {PHASE_LABELS[phaseIdx]}
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:0, borderTop:`1px solid ${B_LINE}`, borderBottom:`1px solid ${B_LINE}`, marginTop:8 }}>
+                  {PHASE_LABELS.map((label, i) => (
+                    <div key={i} style={{ flex:1, padding:'10px 0', textAlign:'center',
+                      borderRight: i < 3 ? `1px solid ${B_LINE}` : 'none',
+                      background: i === phaseIdx ? 'rgba(255,255,255,0.067)' : 'transparent' }}>
+                      <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.25em', color: i===phaseIdx ? B_GOLD : B_FAINT }}>0{i+1}</div>
+                      <div style={{ fontFamily:B_SERIF, fontSize:14, fontStyle: i===phaseIdx ? 'italic' : 'normal', marginTop:3, color: i===phaseIdx ? B_INK : B_DIM }}>{label}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div style={{ display:'flex', gap:0, borderTop:`1px solid ${B_LINE}`, borderBottom:`1px solid ${B_LINE}`, marginTop:8 }}>
-                {PHASE_LABELS.map((label, i) => (
-                  <div key={i} style={{ flex:1, padding:'10px 0', textAlign:'center',
-                    borderRight: i < 3 ? `1px solid ${B_LINE}` : 'none',
-                    background: i === phaseIdx ? 'rgba(255,255,255,0.067)' : 'transparent' }}>
-                    <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.25em', color: i===phaseIdx ? B_GOLD : B_FAINT }}>0{i+1}</div>
-                    <div style={{ fontFamily:B_SERIF, fontSize:14, fontStyle: i===phaseIdx ? 'italic' : 'normal', marginTop:3, color: i===phaseIdx ? B_INK : B_DIM }}>{label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Constellation */}
-            <div style={{ display:'flex', justifyContent:'center', alignItems:'center' }}>
-              <EditorialConstellation
-                planets={constellationPlanets}
-                reclaimed={reclaimed}
-                audit={isPactCheck}
-                caption={isPactCheck ? `◈ PACTS KEPT · ${reclaimed.size}/10` : null}
-              />
-            </div>
-
-            {/* Trade log */}
-            <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column' }}>
-              <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:8 }}>
-                <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>TRADE LOG</div>
-                <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:B_GOLD }}>● LIVE</div>
+              {/* Constellation */}
+              <div style={{ display:'flex', justifyContent:'center', alignItems:'center', flexShrink:0 }}>
+                <EditorialConstellation
+                  planets={constellationPlanets}
+                  reclaimed={reclaimed}
+                  audit={isPactCheck}
+                  caption={isPactCheck ? `◈ PACTS KEPT · ${reclaimed.size}/10` : null}
+                />
               </div>
-              <div style={{ flex:1, minHeight:0, overflow:'hidden', borderTop:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column' }}>
-                {recentTrades.length === 0 && (
-                  <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.25em', color:B_FAINT, textAlign:'center' }}>
-                      NO TRADES YET<br/><span style={{ fontSize:9, opacity:0.6 }}>WAITING FOR TRANSMISSIONS…</span>
-                    </div>
-                  </div>
-                )}
-                {recentTrades.slice(0, 5).map((e, i) => {
-                  const st = TRADE_STATUS[e.status] || TRADE_STATUS.pending
-                  const fromColor = PLANET_COLORS[e.from] || '#888'
-                  const toColor   = PLANET_COLORS[e.to] || '#888'
-                  const fromName  = e.from.charAt(0).toUpperCase() + e.from.slice(1)
-                  const toName    = e.to.charAt(0).toUpperCase() + e.to.slice(1)
-                  return (
-                    <div key={i} style={{ display:'grid', gridTemplateColumns:'42px 1fr 70px', gap:10, alignItems:'center', padding:'7px 0', borderBottom:`1px solid ${B_LINE}` }}>
-                      <div style={{ fontFamily:B_MONO, fontSize:10, color:B_FAINT, letterSpacing:'0.1em' }}>{e.tStr}</div>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0, fontFamily:B_SERIF, fontSize:13, fontStyle:'italic', color:B_INK, letterSpacing:'-0.005em' }}>
-                        <PlanetOrb name={e.from} color={fromColor} size={14}/>
-                        <span style={{ whiteSpace:'nowrap' }}>{fromName}</span>
-                        <span style={{ fontFamily:B_MONO, fontSize:10, color:B_GOLD }}>{e.give.n}{RES_GLYPH[e.give.r]||e.give.r}</span>
-                        <span style={{ fontFamily:B_MONO, fontSize:11, color:B_FAINT }}>→</span>
-                        <span style={{ fontFamily:B_MONO, fontSize:10, color:B_GOLD }}>{e.take.n}{RES_GLYPH[e.take.r]||e.take.r}</span>
-                        <PlanetOrb name={e.to} color={toColor} size={14}/>
-                        <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{toName}</span>
+
+              {/* Trade log */}
+              <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column' }}>
+                <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:8 }}>
+                  <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>TRADE LOG</div>
+                  <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:B_GOLD }}>● LIVE</div>
+                </div>
+                <div style={{ flex:1, minHeight:0, overflow:'hidden', borderTop:`1px solid ${B_LINE}`, display:'flex', flexDirection:'column' }}>
+                  {recentTrades.length === 0 && (
+                    <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.25em', color:B_FAINT, textAlign:'center' }}>
+                        NO TRADES YET<br/><span style={{ fontSize:9, opacity:0.6 }}>WAITING FOR TRANSMISSIONS…</span>
                       </div>
-                      <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:st.color, textAlign:'right' }}>{st.label}</div>
                     </div>
-                  )
-                })}
+                  )}
+                  {recentTrades.slice(0, 5).map((e, i) => {
+                    const st = TRADE_STATUS[e.status] || TRADE_STATUS.pending
+                    const fromColor = PLANET_COLORS[e.from] || '#888'
+                    const toColor   = PLANET_COLORS[e.to] || '#888'
+                    const fromName  = e.from.charAt(0).toUpperCase() + e.from.slice(1)
+                    const toName    = e.to.charAt(0).toUpperCase() + e.to.slice(1)
+                    return (
+                      <div key={i} style={{ display:'grid', gridTemplateColumns:'42px 1fr 70px', gap:10, alignItems:'center', padding:'7px 0', borderBottom:`1px solid ${B_LINE}` }}>
+                        <div style={{ fontFamily:B_MONO, fontSize:10, color:B_FAINT, letterSpacing:'0.1em' }}>{e.tStr}</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0, fontFamily:B_SERIF, fontSize:13, fontStyle:'italic', color:B_INK, letterSpacing:'-0.005em' }}>
+                          <PlanetOrb name={e.from} color={fromColor} size={14}/>
+                          <span style={{ whiteSpace:'nowrap' }}>{fromName}</span>
+                          <span style={{ fontFamily:B_MONO, fontSize:10, color:B_GOLD }}>{e.give.n}{RES_GLYPH[e.give.r]||e.give.r}</span>
+                          <span style={{ fontFamily:B_MONO, fontSize:11, color:B_FAINT }}>→</span>
+                          <span style={{ fontFamily:B_MONO, fontSize:10, color:B_GOLD }}>{e.take.n}{RES_GLYPH[e.take.r]||e.take.r}</span>
+                          <PlanetOrb name={e.to} color={toColor} size={14}/>
+                          <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{toName}</span>
+                        </div>
+                        <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:st.color, textAlign:'right' }}>{st.label}</div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Action row */}
-            <div style={{ display:'flex', gap:10 }}>
+            {/* Action row — pinned outside scroll area so it's never clipped */}
+            <div style={{ flexShrink:0, padding:'16px 40px', borderTop:`1px solid ${B_LINE}`, display:'flex', gap:10 }}>
               <button onClick={() => phaseAction('NEXT_PHASE')} style={{ ...btnB(true), flex:1 }}>Advance phase</button>
               <button onClick={() => phaseAction('NEXT_YEAR')} style={{ ...btnB(false), flex:1 }}>
                 Open chapter {CHAPTER_ROMAN[Math.min(session.year, 4)]}
