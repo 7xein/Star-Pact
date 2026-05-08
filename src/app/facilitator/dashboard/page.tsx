@@ -770,7 +770,7 @@ export default function FacilitatorDashboard() {
         </div>
 
         {/* ── Footer ── */}
-        <div style={{ position:'absolute', bottom:14, left:40, right:40, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ position:'absolute', bottom:14, left:40, right:40, display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8 }}>
           <button onClick={async () => {
             if (!confirm('Reset session? This clears all planet picks, trades, and game state. Players will need to rejoin.')) return
             const res = await fetch('/api/session/new', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: 'admin123' }) })
@@ -780,7 +780,7 @@ export default function FacilitatorDashboard() {
               window.location.reload()
             } else { alert('Failed to reset session') }
           }}
-            style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:'#e87a7a', background:'transparent', border:`1px solid rgba(232,122,122,0.25)`, padding:'4px 12px', cursor:'pointer' }}>
+            style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'4px 12px', cursor:'pointer' }}>
             ↺ RESET SESSION
           </button>
           <button onClick={() => setQrOpen(o => !o)}
