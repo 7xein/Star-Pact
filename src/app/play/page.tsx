@@ -76,7 +76,7 @@ const B_MONO  = '"JetBrains Mono", "Courier New", monospace'
 
 const PHASE_LABELS: Record<string, string> = {
   TRADING: 'Trading Phase',
-  PROMISE_CHECK: 'Pact Check',
+  PROMISE_CHECK: 'Target',
   SCANDAL: 'Escalation',
   YEAR_END: 'Chapter End',
   DEBRIEF: 'Debrief',
@@ -354,9 +354,12 @@ export default function PlayPage() {
   const submitEscalation = async () => {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
     if (!sid || !cid || !scandalTarget) return
+    // Auto-calculate amount: all of the target's selected resource
+    const target = session?.countries.find(c => c.id === scandalTarget)
+    const amount = target ? (target[scandalResource as keyof Country] as number) : 1
     const res = await fetch('/api/scandal', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid, attackerId: cid, defenderId: scandalTarget, resource: scandalResource, amount: scandalAmount }),
+      body: JSON.stringify({ sessionId: sid, attackerId: cid, defenderId: scandalTarget, resource: scandalResource, amount }),
     })
     if (!res.ok) {
       const err = await res.json()
@@ -893,7 +896,7 @@ export default function PlayPage() {
                     {RESOURCES.map(r => <option key={r} value={r}>{RES_LABELS[r]}</option>)}
                   </select>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={() => setOfferAmount(a => Math.max(1, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
+                    <button onClick={() => setOfferAmount(a => Math.max(0, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
                     <span style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: B_GOLD, flex: 1, textAlign: 'center' }}>{offerAmount}</span>
                     <button onClick={() => setOfferAmount(a => a + 1)} className="btn-ghost" style={{ padding: '4px 10px' }}>+</button>
                   </div>
@@ -904,7 +907,7 @@ export default function PlayPage() {
                     {RESOURCES.map(r => <option key={r} value={r}>{RES_LABELS[r]}</option>)}
                   </select>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={() => setRequestAmount(a => Math.max(1, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
+                    <button onClick={() => setRequestAmount(a => Math.max(0, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
                     <span style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: B_GOLD, flex: 1, textAlign: 'center' }}>{requestAmount}</span>
                     <button onClick={() => setRequestAmount(a => a + 1)} className="btn-ghost" style={{ padding: '4px 10px' }}>+</button>
                   </div>
@@ -941,7 +944,7 @@ export default function PlayPage() {
               Launch escalation<span style={{ color: B_INK }}>.</span>
             </div>
             <div style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, marginBottom: 12 }}>
-              PICK A TARGET · PICK A RESOURCE
+              PICK A TARGET · PICK A RESOURCE · ALL OR NOTHING
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '0 0 12px' }}>
               {RESOURCES.map(r => (
@@ -962,20 +965,13 @@ export default function PlayPage() {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <Label color="rgba(255,59,59,0.7)">Resource</Label>
-                  <select value={scandalResource} onChange={e => setScandalResource(e.target.value)} className="sp-input" style={{ marginTop: 6 }}>
-                    {RESOURCES.map(r => <option key={r} value={r}>{RES_LABELS[r]}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <Label color="rgba(255,59,59,0.7)">Amount</Label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                    <button onClick={() => setScandalAmount(a => Math.max(1, a - 1))} className="btn-ghost" style={{ padding: '4px 10px' }}>−</button>
-                    <span style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: '#ff3b3b', flex: 1, textAlign: 'center' }}>{scandalAmount}</span>
-                    <button onClick={() => setScandalAmount(a => a + 1)} className="btn-ghost" style={{ padding: '4px 10px' }}>+</button>
-                  </div>
+              <div>
+                <Label color="rgba(255,59,59,0.7)">Resource to seize</Label>
+                <select value={scandalResource} onChange={e => setScandalResource(e.target.value)} className="sp-input" style={{ marginTop: 6 }}>
+                  {RESOURCES.map(r => <option key={r} value={r}>{RES_LABELS[r]}</option>)}
+                </select>
+                <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.15em', color: B_FAINT, marginTop: 6 }}>
+                  ALL of the target's {RES_LABELS[scandalResource]} will be at stake
                 </div>
               </div>
 
