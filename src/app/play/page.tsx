@@ -283,7 +283,42 @@ export default function PlayPage() {
         showNotif(`Escalation resolved — ${outcome}`)
       }
     }
-    return () => es.close()
+
+    // Poll as fallback since Vercel serverless doesn't share in-memory SSE across instances
+    const poll = setInterval(async () => {
+      try {
+        // Refresh session state (resources, phase, etc.)
+        const sesRes = await fetch('/api/session')
+        if (sesRes.ok) {
+          const fresh: Session = await sesRes.json()
+          setSession(fresh)
+          const me = fresh.countries.find((c: Country) => c.id === cid)
+          if (me) updateMyCountry(me)
+        }
+        // Refresh pending trades
+        const tradeRes = await fetch(`/api/trade?sessionId=${sid}&countryId=${cid}`)
+        if (tradeRes.ok) {
+          const trades = await tradeRes.json()
+          setIncomingTrades(trades)
+        }
+        // Refresh active scandals
+        const scanRes = await fetch(`/api/scandal?sessionId=${sid}`)
+        if (scanRes.ok) {
+          const scandals = await scanRes.json()
+          setActiveScandals(scandals)
+          // Update active scandal if one is open
+          if (scandals.length > 0) {
+            const current = scandals[0]
+            setActiveScandal((prev: ScandalFull | null) => {
+              if (!prev || prev.id === current.id) return current
+              return prev
+            })
+          }
+        }
+      } catch { /* ignore */ }
+    }, 3000)
+
+    return () => { es.close(); clearInterval(poll) }
   }, [loadData])
 
   const submitTrade = async () => {

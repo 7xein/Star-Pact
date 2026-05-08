@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { broadcastUpdate } from '@/lib/sse'
 
@@ -8,6 +8,19 @@ const SCANDAL_INCLUDE = {
   alliances: { include: { country: true } },
   volleys: true,
 } as const
+
+export async function GET(req: NextRequest) {
+  const sessionId = req.nextUrl.searchParams.get('sessionId')
+  if (!sessionId) return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 })
+
+  const scandals = await prisma.scandal.findMany({
+    where: { sessionId, status: 'OPEN' },
+    include: SCANDAL_INCLUDE,
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return NextResponse.json(scandals)
+}
 
 export async function POST(req: Request) {
   const body = await req.json()

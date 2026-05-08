@@ -1,6 +1,23 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { broadcastUpdate } from '@/lib/sse'
+
+export async function GET(req: NextRequest) {
+  const sessionId = req.nextUrl.searchParams.get('sessionId')
+  const countryId = req.nextUrl.searchParams.get('countryId')
+  if (!sessionId || !countryId) return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+
+  const trades = await prisma.trade.findMany({
+    where: { sessionId, receiverId: countryId, status: 'PENDING' },
+    include: { sender: { select: { name: true } } },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return NextResponse.json(trades.map(t => ({
+    ...t,
+    senderName: t.sender.name,
+  })))
+}
 
 export async function POST(req: Request) {
   const body = await req.json()

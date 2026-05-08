@@ -422,6 +422,26 @@ export default function FacilitatorDashboard() {
             return prev
           })
         }
+        // Also poll scandals
+        const scanRes = await fetch(`/api/scandal?sessionId=${id}`)
+        if (scanRes.ok) {
+          const scandals = await scanRes.json()
+          if (scandals.length > 0) {
+            const sc = scandals[0] as ScandalFull
+            setTvScandal(prev => {
+              if (!prev) {
+                // New scandal detected via poll — show raid alert
+                setRaidAlert({ attacker: sc.attacker?.name || '?', defender: sc.defender?.name || '?' })
+                if (raidAlertTimer.current) clearTimeout(raidAlertTimer.current)
+                raidAlertTimer.current = setTimeout(() => setRaidAlert(null), 5000)
+                return sc
+              }
+              // Update existing scandal
+              if (prev.id === sc.id) return sc
+              return prev
+            })
+          }
+        }
       } catch { /* ignore polling errors */ }
     }, 4000)
 
