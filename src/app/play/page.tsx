@@ -820,7 +820,15 @@ export default function PlayPage() {
             <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 700, marginBottom: 4 }}>
               Propose trade<span style={{ color: B_GOLD }}>.</span>
             </div>
-            <div style={{ height: 1, background: B_LINE, margin: '12px 0' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '12px 0' }}>
+              {RESOURCES.map(r => (
+                <div key={r} style={{ background: 'rgba(244,239,229,0.06)', borderRadius: 6, padding: '8px 0', textAlign: 'center' }}>
+                  <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.15em', color: B_FAINT, marginBottom: 2 }}>{RES_LABELS[r]}</div>
+                  <div style={{ fontFamily: B_SERIF, fontSize: 20, fontWeight: 700, color: B_GOLD }}>{myCountry![r as keyof Country] as number}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ height: 1, background: B_LINE, margin: '0 0 12px' }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <Label>Target planet</Label>
@@ -893,6 +901,14 @@ export default function PlayPage() {
             </div>
             <div style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.2em', color: B_FAINT, marginBottom: 12 }}>
               PICK A TARGET · PICK A RESOURCE
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '0 0 12px' }}>
+              {RESOURCES.map(r => (
+                <div key={r} style={{ background: 'rgba(255,59,59,0.08)', borderRadius: 6, padding: '8px 0', textAlign: 'center' }}>
+                  <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.15em', color: B_FAINT, marginBottom: 2 }}>{RES_LABELS[r]}</div>
+                  <div style={{ fontFamily: B_SERIF, fontSize: 20, fontWeight: 700, color: '#ff3b3b' }}>{myCountry![r as keyof Country] as number}</div>
+                </div>
+              ))}
             </div>
             <div style={{ height: 1, background: 'rgba(255,59,59,0.3)', margin: '0 0 16px' }} />
 
