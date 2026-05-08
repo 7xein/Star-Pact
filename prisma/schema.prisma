@@ -81,6 +81,7 @@ model Scandal {
   beat            String   @default("ALLIANCE")  // ALLIANCE | VOLLEY | HIT | RESOLUTION | CLOSED
   beatEndsAt      DateTime?
   hitSide         String?                        // STRIKER | SHIELDER (the side that LOST)
+  lastFiringSide  String?                        // STRIKER | SHIELDER — last side to fire a volley
   currentRound    Int      @default(1)
   alliances       ScandalAlliance[]
   volleys         ScandalVolley[]

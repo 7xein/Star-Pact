@@ -146,6 +146,7 @@ export interface ScandalFull {
   beatEndsAt: string | null
   currentRound: number
   hitSide: string | null
+  lastFiringSide?: string | null
   alliances: Array<{ countryId: string; side: string; country?: { name: string; color: string } }>
   volleys: Array<{ countryId: string; round: number; side: string }>
   attacker?: { id: string; name: string; color: string }
@@ -161,13 +162,19 @@ interface Props {
   session: { countries: Country[] }
   onFire: () => Promise<void>
   onJoinAlliance: (side: 'ATTACKER' | 'DEFENDER') => Promise<void>
+  onDismiss?: () => void
 }
 
+// ── Timer constants ──────────────────────────────────────
+const ALLIANCE_DURATION = 20
+const VOLLEY_DURATION = 10
+
 // ── Main Overlay ──────────────────────────────────────────
-export default function ScandalOverlay({ scandal, myCountry, session, onFire, onJoinAlliance }: Props) {
+export default function ScandalOverlay({ scandal, myCountry, session, onFire, onJoinAlliance, onDismiss }: Props) {
   const [remaining, setRemaining] = useState(0)
   const [firedThisRound, setFiredThisRound] = useState(false)
   const [allianceChosen, setAllianceChosen] = useState(false)
+  const [abstained, setAbstained] = useState(false)
   const [firing, setFiring] = useState(false)
 
   // Compute my role
@@ -177,7 +184,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
   const isAllyAttacker = !isAttacker && !isDefender && myAlliance?.side === 'ATTACKER'
   const isAllyDefender = !isAttacker && !isDefender && myAlliance?.side === 'DEFENDER'
   const isParticipant = isAttacker || isDefender || !!myAlliance
-  const isAbstained = !isParticipant && scandal.beat !== 'ALLIANCE'
+  const isObserver = abstained || (!isParticipant && scandal.beat !== 'ALLIANCE')
 
   // Track if already fired this round
   useEffect(() => {
@@ -213,15 +220,16 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
     await onJoinAlliance(side)
   }
 
+  const handleAbstain = () => {
+    setAbstained(true)
+  }
+
   const attacker = scandal.attacker ?? session.countries.find(c => c.id === scandal.attackerId)
   const defender = scandal.defender ?? session.countries.find(c => c.id === scandal.defenderId)
   if (!attacker || !defender) return null
 
   const attackerAllies = scandal.alliances.filter(a => a.side === 'ATTACKER').length
   const defenderAllies = scandal.alliances.filter(a => a.side === 'DEFENDER').length
-
-  // Side accent for participant
-  const mySideColor = (isAttacker || isAllyAttacker) ? TV.red : TV.blue
 
   // ── CLOSED — don't render ───────────────────────────────
   if (scandal.beat === 'CLOSED') return null
@@ -235,7 +243,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
 
   // ── HIT beat ────────────────────────────────────────────
   if (scandal.beat === 'HIT') {
-    const hitSide = scandal.hitSide // 'SHIELDER' = attacker wins; 'STRIKER' = defender wins
+    const hitSide = scandal.hitSide
     const attackerWins = hitSide === 'SHIELDER'
     const hitPlanet = attackerWins ? defender : attacker
     const winnerPlanet = attackerWins ? attacker : defender
@@ -252,12 +260,11 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
             {winnerPlanet.name.toUpperCase()} CONNECTED
           </div>
           <div style={{ position: 'relative', marginBottom: 24 }}>
-            {/* Shockwaves */}
-            {[0, 0.3, 0.6].map((_, i) => (
+            {[0, 0.3, 0.6].map((d, i) => (
               <div key={i} style={{
                 position: 'absolute', inset: '50%', width: 80, height: 80, marginLeft: -40, marginTop: -40,
                 borderRadius: '50%', border: `2px solid ${targetColor}`,
-                animation: `tvShockwave 1.6s ease-out ${_ }s infinite`,
+                animation: `tvShockwave 1.6s ease-out ${d}s infinite`,
               }} />
             ))}
             <PlanetOrb name={hitPlanet.name} color={hitPlanet.color} size={140} glow />
@@ -275,11 +282,11 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
     )
   }
 
-  // ── RESOLUTION beat ─────────────────────────────────────
+  // ── RESOLUTION beat — tap to dismiss ────────────────────
   if (scandal.beat === 'RESOLUTION') {
     const attackerWins = scandal.hitSide === 'SHIELDER'
     return (
-      <div style={bgStyle}>
+      <div style={{ ...bgStyle, cursor: 'pointer' }} onClick={() => onDismiss?.()}>
         <StarsBg />
         <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
           {attackerWins ? (
@@ -341,12 +348,31 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
               <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.3em', color: TV.blue, marginTop: 10 }}>HOLDS · +0</div>
             </>
           )}
+          <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.3em', color: TV.faint, marginTop: 24 }}>
+            TAP ANYWHERE TO CONTINUE
+          </div>
         </div>
       </div>
     )
   }
 
   // ── ALLIANCE beat ────────────────────────────────────────
+
+  // Observer view (abstained or non-participant after alliance)
+  if (scandal.beat === 'ALLIANCE' && abstained) {
+    return (
+      <div style={bgStyle}>
+        <StarsBg />
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center', gap: 16 }}>
+          <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.4em', color: TV.faint }}>ABSTAINED</div>
+          <div style={{ fontFamily: TV.display, fontSize: 40, lineHeight: 0.9, color: TV.ink, opacity: 0.7 }}>OBSERVING</div>
+          <CountdownRing remaining={remaining} total={ALLIANCE_DURATION} size={120} color={TV.gold} />
+          <div style={{ fontFamily: TV.serif, fontSize: 14, color: TV.dim, fontStyle: 'italic' }}>Others are choosing sides…</div>
+        </div>
+      </div>
+    )
+  }
+
   if (scandal.beat === 'ALLIANCE') {
     // Attacker view
     if (isAttacker) {
@@ -376,7 +402,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
             </div>
             <StakeCard resource={scandal.resource} amount={scandal.amount} accentColor={TV.gold} />
             <div style={{ textAlign: 'center' }}>
-              <CountdownRing remaining={remaining} total={10} size={120} color={TV.gold} />
+              <CountdownRing remaining={remaining} total={ALLIANCE_DURATION} size={120} color={TV.gold} />
               <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.3em', color: TV.dim, marginTop: 6 }}>
                 ALLIANCE WINDOW · {attackerAllies + defenderAllies} PLEDGED
               </div>
@@ -417,7 +443,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <CountdownRing remaining={remaining} total={10} size={120} color={TV.gold} />
+              <CountdownRing remaining={remaining} total={ALLIANCE_DURATION} size={120} color={TV.gold} />
               <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.3em', color: TV.dim, marginTop: 6 }}>
                 OTHERS ARE CHOOSING SIDES
               </div>
@@ -455,7 +481,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
             </div>
 
             <div style={{ textAlign: 'center', padding: '12px 0 16px' }}>
-              <CountdownRing remaining={remaining} total={10} size={120} color={TV.gold} />
+              <CountdownRing remaining={remaining} total={ALLIANCE_DURATION} size={120} color={TV.gold} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -493,7 +519,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
                 <span style={{ fontFamily: TV.display, fontSize: 22, color: TV.blue }}>→</span>
               </button>
 
-              <button style={{
+              <button onClick={handleAbstain} style={{
                 padding: '10px', border: `1px dashed ${TV.faint}`, background: 'transparent',
                 color: TV.dim, fontFamily: TV.mono, fontSize: 10, letterSpacing: '0.3em', cursor: 'pointer',
               }}>
@@ -509,7 +535,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
       )
     }
 
-    // Already chose / abstained during alliance
+    // Already chose / waiting for alliance to end
     return (
       <div style={bgStyle}>
         <StarsBg />
@@ -517,7 +543,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
           <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.4em', color: isAllyAttacker ? TV.red : TV.blue }}>
             {isAllyAttacker ? `STRIKING WITH ${attacker.name.toUpperCase()}` : isAllyDefender ? `SHIELDING ${defender.name.toUpperCase()}` : 'OBSERVING'}
           </div>
-          <CountdownRing remaining={remaining} total={10} size={130} color={TV.gold} />
+          <CountdownRing remaining={remaining} total={ALLIANCE_DURATION} size={130} color={TV.gold} />
           <div style={{ fontFamily: TV.serif, fontSize: 14, color: TV.dim, fontStyle: 'italic' }}>Volley starts soon…</div>
         </div>
       </div>
@@ -526,8 +552,8 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
 
   // ── VOLLEY beat ──────────────────────────────────────────
   if (scandal.beat === 'VOLLEY') {
-    // Non-participant or abstained
-    if (!isParticipant) {
+    // Non-participant or observer
+    if (isObserver) {
       return (
         <div style={bgStyle}>
           <StarsBg />
@@ -551,7 +577,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
                 </div>
               </div>
               <div style={{ marginTop: 10 }}>
-                <CountdownBar remaining={remaining} total={5} color={TV.gold} />
+                <CountdownBar remaining={remaining} total={VOLLEY_DURATION} color={TV.gold} />
                 <div style={{ fontFamily: TV.mono, fontSize: 9, letterSpacing: '0.2em', color: TV.gold, marginTop: 4, textAlign: 'center' }}>{remaining.toFixed(1)}s</div>
               </div>
             </div>
@@ -567,10 +593,12 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
       : isDefender ? 'YOU ARE DEFENDING'
       : isAllyAttacker ? `STRIKING WITH ${attacker.name.toUpperCase()}`
       : `SHIELDING ${defender.name.toUpperCase()}`
+
+    const outOfRockets = myCountry.kushBalls < 1
     const btnLabel = firedThisRound ? '◤ ROCKET AWAY ◢'
-      : myCountry.kushBalls < 1 ? 'OUT OF ROCKETS'
+      : outOfRockets ? 'OUT OF ROCKETS'
       : `◤ ${isDefender || isAllyDefender ? 'DEFEND' : 'FIRE ROCKET'} ◢`
-    const canFire = !firedThisRound && myCountry.kushBalls >= 1
+    const canFire = !firedThisRound && !outOfRockets
 
     return (
       <div style={bgStyle}>
@@ -601,7 +629,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
             </span>
             <span style={{ fontFamily: TV.display, fontSize: 28, color: TV.gold, lineHeight: 1 }}>{remaining.toFixed(1)}s</span>
           </div>
-          <CountdownBar remaining={remaining} total={5} color={TV.gold} />
+          <CountdownBar remaining={remaining} total={VOLLEY_DURATION} color={TV.gold} />
 
           <button
             onClick={handleFire}
@@ -622,6 +650,11 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
           {firedThisRound && (
             <div style={{ textAlign: 'center', fontFamily: TV.serif, fontSize: 12, fontStyle: 'italic', color: TV.dim }}>
               Rocket launched. Awaiting next volley…
+            </div>
+          )}
+          {outOfRockets && !firedThisRound && (
+            <div style={{ textAlign: 'center', fontFamily: TV.serif, fontSize: 12, fontStyle: 'italic', color: TV.dim }}>
+              No rockets left. Waiting for others…
             </div>
           )}
         </div>

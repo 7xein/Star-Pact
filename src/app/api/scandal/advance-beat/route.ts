@@ -51,8 +51,20 @@ export async function POST(req: Request) {
     let hitSide: string | null = null
     let nextRound = scandal.currentRound
 
-    if (strikerFires === shielderFires && scandal.currentRound < MAX_ROUNDS) {
-      // Equal (including both zero — but only repeat if under max rounds) → next volley
+    if (strikerFires === 0 && shielderFires === 0) {
+      // Both sides empty this round — last side to fire in a previous round wins
+      const lastSide = scandal.lastFiringSide
+      if (lastSide === 'STRIKER') {
+        hitSide = 'SHIELDER' // attacker wins
+      } else if (lastSide === 'SHIELDER') {
+        hitSide = 'STRIKER' // defender wins
+      } else {
+        hitSide = 'STRIKER' // nobody ever fired — defender wins by default
+      }
+      nextBeat = 'HIT'
+      nextBeatEndsAt = new Date(now.getTime() + 3000)
+    } else if (strikerFires === shielderFires && scandal.currentRound < MAX_ROUNDS) {
+      // Equal — next volley
       nextRound = scandal.currentRound + 1
       nextBeat = 'VOLLEY'
       nextBeatEndsAt = new Date(now.getTime() + 10000)
@@ -62,7 +74,7 @@ export async function POST(req: Request) {
       nextBeat = 'HIT'
       nextBeatEndsAt = new Date(now.getTime() + 3000)
     } else {
-      // shielderFires > strikerFires OR max rounds tie → strikers take the hit → defender wins
+      // shielderFires > strikerFires OR max rounds tie → defender wins
       hitSide = 'STRIKER'
       nextBeat = 'HIT'
       nextBeatEndsAt = new Date(now.getTime() + 3000)
@@ -113,7 +125,6 @@ export async function POST(req: Request) {
           })
         }
       }
-      // Defender wins: no resource transfer — attacker just loses their rockets (already spent firing)
 
       await tx.scandal.update({
         where: { id: scandalId },

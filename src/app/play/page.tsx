@@ -198,7 +198,7 @@ export default function PlayPage() {
         })
       } catch { advancingBeatRef.current = false }
     }
-    const id = setInterval(check, 300)
+    const id = setInterval(check, 3000)
     return () => clearInterval(id)
   }, [activeScandal?.id, activeScandal?.beatEndsAt, activeScandal?.beat])
 
@@ -954,6 +954,7 @@ export default function PlayPage() {
           session={session}
           onFire={fireRocket}
           onJoinAlliance={joinAllianceForScandal}
+          onDismiss={() => setActiveScandal(null)}
         />
       )}
 
