@@ -243,7 +243,7 @@ export default function ScandalOverlay({ scandal, myCountry, session, onFire, on
   const bgStyle: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 200,
     background: `radial-gradient(ellipse at 50% 30%, ${TV.bgDeep} 0%, ${TV.bg} 70%)`,
-    color: TV.ink, fontFamily: TV.sans, overflow: 'hidden',
+    color: TV.ink, fontFamily: TV.sans, overflowX: 'hidden', overflowY: 'auto',
     display: 'flex', flexDirection: 'column',
   }
 

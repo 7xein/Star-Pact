@@ -856,8 +856,8 @@ export default function PlayPage() {
 
       </div>
 
-      {/* ── Action Ribbon (above tabs) ── */}
-      <div style={{
+      {/* ── Action Ribbon (above tabs) — hidden during scandal overlay ── */}
+      {!(activeScandal && activeScandal.beat !== 'CLOSED') && <div style={{
         position: 'absolute', bottom: 64, left: 0, right: 0,
         padding: '10px 16px', display: 'flex', gap: 8,
         borderTop: `1px solid ${B_LINE}`,
@@ -893,10 +893,10 @@ export default function PlayPage() {
             ESCALATION PHASE · STANDBY
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* ── Bottom Tab Bar ── */}
-      <div style={{
+      {/* ── Bottom Tab Bar — hidden during scandal overlay ── */}
+      {!(activeScandal && activeScandal.beat !== 'CLOSED') && <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: 64,
         display: 'grid', gridTemplateColumns: 'repeat(4,1fr)',
         borderTop: `1px solid ${B_LINE}`,
@@ -920,7 +920,7 @@ export default function PlayPage() {
             </button>
           )
         })}
-      </div>
+      </div>}
 
       {/* ── Trade Modal ── */}
       {showTradeModal && (
