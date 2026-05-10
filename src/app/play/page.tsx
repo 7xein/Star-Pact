@@ -165,6 +165,7 @@ export default function PlayPage() {
   const sessionIdRef = useRef<string | null>(null)
   const countryIdRef = useRef<string | null>(null)
   const prevPhaseRef = useRef<string | null>(null)
+  const targetWarningShownRef = useRef<string | null>(null) // tracks "year-phase" combo we already showed warning for
 
   const DEBRIEF_QUESTIONS = [
     'How does this simulation represent your real organization?',
@@ -392,8 +393,10 @@ export default function PlayPage() {
   useEffect(() => {
     if (!session || !myCountry) return
     const currentPhase = session.phase
-    if (currentPhase === 'SCANDAL' && prevPhaseRef.current && prevPhaseRef.current !== 'SCANDAL') {
-      // Check for unmet pacts (same logic as failedPacts but computed here since pacts depends on render)
+    const key = `${session.year}-SCANDAL`
+
+    // When phase is SCANDAL and we haven't shown the warning for this year yet
+    if (currentPhase === 'SCANDAL' && targetWarningShownRef.current !== key) {
       const pacts = JSON.parse(myCountry.promisesData) as Array<{ resource: string; target: number; byYear: number }>
       const unmet = pacts.filter(p =>
         p.resource !== 'kushBalls' &&
@@ -401,11 +404,18 @@ export default function PlayPage() {
         (myCountry[p.resource as keyof Country] as number) < p.target
       )
       if (unmet.length > 0) {
+        targetWarningShownRef.current = key
         setShowTargetWarning(true)
       }
     }
-    prevPhaseRef.current = currentPhase
-  }, [session?.phase, session?.year, myCountry?.id])
+    // Reset the tracker when phase moves away from SCANDAL (so it re-shows next time)
+    if (currentPhase !== 'SCANDAL') {
+      const prevKey = `${session.year}-SCANDAL`
+      if (targetWarningShownRef.current === prevKey) {
+        targetWarningShownRef.current = null
+      }
+    }
+  }, [session?.phase, session?.year, myCountry])
 
   const submitTrade = async () => {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
