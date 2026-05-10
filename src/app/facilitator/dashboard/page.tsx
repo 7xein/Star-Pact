@@ -22,19 +22,6 @@ const B_MONO  = '"JetBrains Mono", ui-monospace, monospace'
 const RES_GLYPH: Record<string, string> = { food: '⚡', environment: '○', wealth: '◉', kushBalls: '◈', energy: '⚡', oxygen: '○', crew: '◉' }
 const RES_LABELS_DASH: Record<string, string> = { food: 'Energy', wealth: 'Crew', environment: 'Oxygen', kushBalls: 'Operatives' }
 
-const PLANET_MOTTOS: Record<string, string> = {
-  ignis:    'We burned first. We will burn last.',
-  solara:   "If it's not dangerous, it's not worth doing.",
-  glacius:  'We remember. That is enough.',
-  rosara:   'Even in war, comfort is mandatory.',
-  verdania: 'Survival must be sustainable.',
-  lumenor:  "If it shines, it's worth building.",
-  dustara:  'Trust instinct. Distrust everyone else.',
-  aqualis:  'We solved it yesterday.',
-  voidara:  'Sing a song. Invoice to follow.',
-  ferron:   "What's the worst that could happen?",
-}
-
 const CHAPTER_WORDS = ['One', 'Two', 'Three', 'Four', 'Five']
 const CHAPTER_ROMAN = ['I', 'II', 'III', 'IV', 'V']
 
@@ -783,7 +770,6 @@ export default function FacilitatorDashboard() {
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
                   {session.countries.map((c, i) => {
-                    const pid = getPlanetId(c.name)
                     return (
                       <div key={c.id} style={{ display:'grid', gridTemplateColumns:'22px 1fr 168px',
                         alignItems:'center', gap:10, flex:1, minHeight:0, padding:'2px 0',
@@ -792,13 +778,8 @@ export default function FacilitatorDashboard() {
                         <div style={{ fontFamily:B_SERIF, fontSize:14, color:B_FAINT, fontStyle:'italic' }}>{String(i+1).padStart(2,'0')}</div>
                         <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
                           <PlanetOrb name={c.name} color={c.color} size={36}/>
-                          <div style={{ minWidth:0 }}>
-                            <div style={{ fontFamily:B_SERIF, fontSize:19, fontWeight:400, letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                              {c.name}
-                            </div>
-                            <div style={{ fontFamily:B_SERIF, fontSize:12, color:B_FAINT, fontStyle:'italic', marginTop:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                              {PLANET_MOTTOS[pid] || '—'}
-                            </div>
+                          <div style={{ fontFamily:B_SERIF, fontSize:19, fontWeight:400, letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {c.name}
                           </div>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,56px)', fontFamily:B_MONO, fontSize:16, fontWeight:500, textAlign:'right' }}>
