@@ -70,8 +70,8 @@ const B_INK   = '#f4efe5'
 const B_DIM   = 'rgba(244,239,229,0.78)'
 const B_FAINT = 'rgba(244,239,229,0.55)'
 const B_LINE  = 'rgba(244,239,229,0.14)'
-const B_SERIF = '"Space Grotesk", "Century Gothic", "Futura", sans-serif'
-const B_SANS  = '"Inter Tight", system-ui, sans-serif'
+const B_SERIF = '"Century Gothic", "AppleGothic", "Futura", sans-serif'
+const B_SANS  = '"Century Gothic", "AppleGothic", "Futura", sans-serif'
 const B_MONO  = '"JetBrains Mono", "Courier New", monospace'
 
 const PHASE_LABELS: Record<string, string> = {

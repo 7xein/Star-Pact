@@ -15,8 +15,8 @@ const B_LINE  = 'rgba(244,239,229,0.12)'
 const B_GOLD  = '#e8c87a'
 const B_GOOD  = '#9bd28a'
 const B_BAD   = '#d28a8a'
-const B_SERIF = '"Fraunces", "Source Serif 4", "Cormorant Garamond", Georgia, serif'
-const B_SANS  = '"Inter Tight", "Inter", system-ui, sans-serif'
+const B_SERIF = '"Century Gothic", "AppleGothic", "Futura", sans-serif'
+const B_SANS  = '"Century Gothic", "AppleGothic", "Futura", sans-serif'
 const B_MONO  = '"JetBrains Mono", ui-monospace, monospace'
 
 const RES_GLYPH: Record<string, string> = { food: '⚡', environment: '○', wealth: '◉', kushBalls: '◈', energy: '⚡', oxygen: '○', crew: '◉' }

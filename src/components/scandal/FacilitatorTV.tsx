@@ -15,9 +15,9 @@ const TV = {
   red:      '#ff4a55',
   blue:     '#5cc1ff',
   gold:     '#f5c66e',
-  display:  '"Anton", "Space Grotesk", system-ui, sans-serif',
-  serif:    '"Space Grotesk", Georgia, serif',
-  sans:     '"Inter Tight", system-ui, sans-serif',
+  display:  '"Century Gothic", "AppleGothic", "Futura", sans-serif',
+  serif:    '"Century Gothic", "AppleGothic", "Futura", sans-serif',
+  sans:     '"Century Gothic", "AppleGothic", "Futura", sans-serif',
   mono:     '"JetBrains Mono", monospace',
 }
 

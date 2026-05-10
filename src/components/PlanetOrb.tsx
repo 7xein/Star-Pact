@@ -254,7 +254,7 @@ export default function PlanetOrb({ name, color, size = 120, glow = true, sigil,
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: '"Space Grotesk", system-ui, sans-serif',
+          fontFamily: '"Century Gothic", "AppleGothic", "Futura", sans-serif',
           fontWeight: 600, fontSize: Math.round(size * 0.30),
           color: '#fff', textShadow: `0 0 ${Math.round(size * 0.1)}px rgba(0,0,0,0.7)`,
           letterSpacing: '0.05em', pointerEvents: 'none',
