@@ -144,6 +144,9 @@ export default function PlayPage() {
   const [requestResource, setRequestResource] = useState('wealth')
   const [requestAmount, setRequestAmount] = useState(1)
 
+  // Target warning popup (shown when entering escalation phase with unmet targets)
+  const [showTargetWarning, setShowTargetWarning] = useState(false)
+
   // Escalation modal
   const [showEscalationModal, setShowEscalationModal] = useState(false)
   const [submittingTrade, setSubmittingTrade] = useState(false)
@@ -161,6 +164,7 @@ export default function PlayPage() {
 
   const sessionIdRef = useRef<string | null>(null)
   const countryIdRef = useRef<string | null>(null)
+  const prevPhaseRef = useRef<string | null>(null)
 
   const DEBRIEF_QUESTIONS = [
     'How does this simulation represent your real organization?',
@@ -383,6 +387,25 @@ export default function PlayPage() {
 
     return () => { es.close(); clearInterval(poll) }
   }, [loadData])
+
+  // Show target warning popup when entering SCANDAL phase with unmet targets
+  useEffect(() => {
+    if (!session || !myCountry) return
+    const currentPhase = session.phase
+    if (currentPhase === 'SCANDAL' && prevPhaseRef.current && prevPhaseRef.current !== 'SCANDAL') {
+      // Check for unmet pacts (same logic as failedPacts but computed here since pacts depends on render)
+      const pacts = JSON.parse(myCountry.promisesData) as Array<{ resource: string; target: number; byYear: number }>
+      const unmet = pacts.filter(p =>
+        p.resource !== 'kushBalls' &&
+        p.byYear <= session.year &&
+        (myCountry[p.resource as keyof Country] as number) < p.target
+      )
+      if (unmet.length > 0) {
+        setShowTargetWarning(true)
+      }
+    }
+    prevPhaseRef.current = currentPhase
+  }, [session?.phase, session?.year, myCountry?.id])
 
   const submitTrade = async () => {
     const sid = sessionIdRef.current; const cid = countryIdRef.current
@@ -1013,6 +1036,56 @@ export default function PlayPage() {
           onDismiss={() => setActiveScandal(null)}
           clockOffset={clockOffsetRef.current}
         />
+      )}
+
+      {/* ── Target Warning Popup ── */}
+      {showTargetWarning && (
+        <div className="sp-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowTargetWarning(false) }}>
+          <div className="sp-modal" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: '#ff3b3b', marginBottom: 8 }}>
+              Target not met!
+            </div>
+            <div style={{ fontFamily: B_SERIF, fontSize: 16, color: B_DIM, marginBottom: 24, lineHeight: 1.5 }}>
+              Would you like to launch an escalation?
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowTargetWarning(false)
+                  setEscalationError(null)
+                  const pacts = JSON.parse(myCountry!.promisesData) as Array<{ resource: string; target: number; byYear: number }>
+                  const unmet = pacts.filter(p =>
+                    p.resource !== 'kushBalls' &&
+                    p.byYear <= session!.year &&
+                    (myCountry![p.resource as keyof Country] as number) < p.target
+                  )
+                  if (unmet.length > 0) setScandalResource(unmet[0].resource)
+                  setShowEscalationModal(true)
+                }}
+                style={{
+                  flex: 1, padding: '14px 0',
+                  background: '#ff3b3b', border: 'none', color: '#fff',
+                  fontFamily: B_SERIF, fontSize: 15, fontWeight: 600,
+                  cursor: 'pointer', letterSpacing: '-0.01em', borderRadius: 4,
+                }}
+              >
+                Yes, escalate
+              </button>
+              <button
+                onClick={() => setShowTargetWarning(false)}
+                style={{
+                  flex: 1, padding: '14px 0',
+                  background: 'transparent', border: `1px solid ${B_LINE}`, color: B_INK,
+                  fontFamily: B_SERIF, fontSize: 15, fontWeight: 600,
+                  cursor: 'pointer', letterSpacing: '-0.01em', borderRadius: 4,
+                }}
+              >
+                No, stand down
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Escalation Modal ── */}
