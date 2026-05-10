@@ -113,18 +113,18 @@ function StarField({ density = 1 }: { density?: number }) {
   return <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }}/>
 }
 
-// ── Editorial Constellation (420×240) ────────────────────────
+// ── Editorial Constellation (340×195) ────────────────────────
 const CONSTELLATION_LAYOUT: Record<string, { x: number; y: number; size: number }> = {
-  ignis:    { x: 52,  y: 64,  size: 30 },
-  solara:   { x: 132, y: 36,  size: 24 },
-  glacius:  { x: 224, y: 58,  size: 28 },
-  rosara:   { x: 268, y: 138, size: 22 },
-  verdania: { x: 198, y: 116, size: 26 },
-  lumenor:  { x: 132, y: 138, size: 38 },
-  dustara:  { x: 38,  y: 144, size: 22 },
-  aqualis:  { x: 78,  y: 210, size: 32 },
-  voidara:  { x: 178, y: 218, size: 26 },
-  ferron:   { x: 252, y: 208, size: 22 },
+  ignis:    { x: 42,  y: 52,  size: 24 },
+  solara:   { x: 107, y: 29,  size: 20 },
+  glacius:  { x: 181, y: 47,  size: 23 },
+  rosara:   { x: 217, y: 112, size: 18 },
+  verdania: { x: 160, y: 94,  size: 21 },
+  lumenor:  { x: 107, y: 112, size: 31 },
+  dustara:  { x: 31,  y: 117, size: 18 },
+  aqualis:  { x: 63,  y: 170, size: 26 },
+  voidara:  { x: 144, y: 177, size: 21 },
+  ferron:   { x: 204, y: 169, size: 18 },
 }
 
 function EditorialConstellation({ planets, reclaimed, audit, caption }: {
@@ -133,7 +133,7 @@ function EditorialConstellation({ planets, reclaimed, audit, caption }: {
   audit: boolean
   caption: string | null
 }) {
-  const W = 420, H = 240
+  const W = 340, H = 195
   const orbRefs = useRef<(HTMLDivElement | null)[]>([])
   const arcRef  = useRef<SVGPathElement | null>(null)
 
@@ -161,10 +161,10 @@ function EditorialConstellation({ planets, reclaimed, audit, caption }: {
   }, [planets.length])
 
   const starDust: [number,number][] = [
-    [22,24],[68,18],[256,26],[292,80],[12,100],
-    [108,78],[168,70],[240,92],[16,188],[112,220],
-    [228,200],[294,200],[54,228],[196,210],[276,158],
-    [148,192],[86,110],[220,30],[44,114],[262,124],
+    [18,19],[55,15],[207,21],[236,65],[10,81],
+    [87,63],[136,57],[194,75],[13,153],[91,179],
+    [185,163],[238,163],[44,185],[159,171],[224,128],
+    [120,156],[70,89],[178,24],[36,93],[212,101],
   ]
 
   return (
@@ -538,8 +538,11 @@ export default function FacilitatorDashboard() {
 
   const isPactCheck = session.phase === 'PROMISE_CHECK'
 
+  // Scale factor for TV projection — increase to make everything bigger
+  const ZOOM = 1.35
+
   return (
-    <div style={{ position:'fixed', inset:0, background:B_BG, overflow:'hidden' }}>
+    <div style={{ position:'fixed', inset:0, background:B_BG, overflow:'hidden', zoom:ZOOM }}>
 
       {/* ── Theater of Voids overlay ── */}
       {tvScandal && tvScandal.beat !== 'CLOSED' && (
