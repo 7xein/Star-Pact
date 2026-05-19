@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SessionStatus {
+  LOBBY
+  ACTIVE
+  ENDED
+}
+
+enum TeamStatus {
+  ACTIVE
+  STRANDED
+  SHIPWRECKED
+  FINISHED
+}
+
+enum ResourceType {
+  WATER
+  PROVISIONS
+  RIGGING
+  SPYGLASS
+  TREASURE
+}
+
+enum LocationType {
+  HOME_PORT
+  TREASURE_ISLAND
+  TRADING_POST
+  FRIENDLY_COVE
+  KRAKEN_LAIR
+  OPEN_SEA
+}
+
+enum WeatherZone {
+  SAFE
+  KRAKEN
+  OPEN_SEA
+}
+
+enum TransactionType {
+  PURCHASE
+  CONSUME
+}
+
+model GameSession {
+  id           String        @id @default(cuid())
+  status       SessionStatus @default(LOBBY)
+  currentDay   Int           @default(0)
+  timerEnd     DateTime?
+  timerRunning Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+
+  teams           Team[]
+  mapLocations    MapLocation[]
+  weatherSchedule WeatherSchedule?
+}
+
+model Team {
+  id                String     @id @default(cuid())
+  sessionId         String
+  session           GameSession @relation(fields: [sessionId], references: [id])
+  name              String
+  joinCode          String     @unique
+  color             String
+  doubloons         Int        @default(1000)
+  cargoCapacity     Int        @default(1000)
+  currentLocationId String?
+  currentLocation   MapLocation? @relation(fields: [currentLocationId], references: [id])
+  status            TeamStatus @default(ACTIVE)
+  lostUntilDay      Int?
+
+  inventory    Inventory[]
+  logEntries   LogEntry[]
+  transactions Transaction[]
+}
+
+model Inventory {
+  id           String       @id @default(cuid())
+  teamId       String
+  team         Team         @relation(fields: [teamId], references: [id])
+  resourceType ResourceType
+  quantity     Int          @default(0)
+  totalWeight  Int          @default(0)
+
+  @@unique([teamId, resourceType])
+}
+
+model LogEntry {
+  id                String   @id @default(cuid())
+  teamId            String
+  team              Team     @relation(fields: [teamId], references: [id])
+  dayNumber         Int
+  fromLocationId    String?
+  toLocationId      String?
+  weather           String
+  provisionsConsumed Int     @default(0)
+  waterConsumed     Int      @default(0)
+  riggingUsed       Boolean  @default(false)
+  spyglassUsed      Boolean  @default(false)
+  treasureEarned    Int      @default(0)
+  wasLost           Boolean  @default(false)
+}
+
+model MapLocation {
+  id          String       @id @default(cuid())
+  sessionId   String
+  session     GameSession  @relation(fields: [sessionId], references: [id])
+  name        String
+  type        LocationType
+  gridX       Int
+  gridY       Int
+  weatherZone WeatherZone
+
+  teams Team[]
+
+  @@unique([sessionId, gridX, gridY])
+}
+
+model WeatherSchedule {
+  id        String      @id @default(cuid())
+  sessionId String      @unique
+  session   GameSession  @relation(fields: [sessionId], references: [id])
+  dayData   Json
+}
+
+model Transaction {
+  id           String          @id @default(cuid())
+  teamId       String
+  team         Team            @relation(fields: [teamId], references: [id])
+  dayNumber    Int
+  type         TransactionType
+  resourceType String
+  quantity     Int
+  cost         Int?
+  locationId   String?
+  createdAt    DateTime        @default(now())
+}
