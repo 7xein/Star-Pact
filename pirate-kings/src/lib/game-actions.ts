@@ -682,16 +682,47 @@ export async function submitMove(
   };
 }
 
-// --- End Game (stub — replaced by Task 4: Scoring) ---
+// --- End Game ---
 
-async function endGameInternal(sessionId: string) {
+import { calculateScores } from "@/lib/scoring";
+import type { ScoreEntry } from "@/lib/scoring";
+
+async function endGameInternal(sessionId: string): Promise<ScoreEntry[]> {
+  const session = await prisma.gameSession.findUniqueOrThrow({
+    where: { id: sessionId },
+    include: {
+      teams: {
+        include: {
+          currentLocation: true,
+          inventory: true,
+          logEntries: true,
+        },
+      },
+      mapLocations: { where: { type: "HOME_PORT" } },
+    },
+  });
+
+  const homePortId = session.mapLocations[0]?.id || "";
+
+  const scores = calculateScores(session.teams as never[], homePortId);
+
+  for (const score of scores) {
+    if (score.status === "SHIPWRECKED") {
+      await prisma.team.update({ where: { id: score.teamId }, data: { status: "SHIPWRECKED" } });
+    } else if (score.status === "FINISHED") {
+      await prisma.team.update({ where: { id: score.teamId }, data: { status: "FINISHED" } });
+    }
+  }
+
   await prisma.gameSession.update({
     where: { id: sessionId },
     data: { status: "ENDED", timerRunning: false, timerEnd: null },
   });
+
+  return scores;
 }
 
-export async function endGame(sessionId: string) {
+export async function endGame(sessionId: string): Promise<ScoreEntry[]> {
   const session = await prisma.gameSession.findUniqueOrThrow({ where: { id: sessionId } });
   if (session.status !== "ACTIVE") throw new Error("Game is not active");
   return endGameInternal(sessionId);
