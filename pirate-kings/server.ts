@@ -111,6 +111,44 @@ app.prepare().then(() => {
       });
     });
 
+    socket.on("submit-move", async (data: { teamId: string; targetX: number; targetY: number }) => {
+      try {
+        const { submitMove } = await import("./src/lib/game-actions");
+        const result = await submitMove(data.teamId, data.targetX, data.targetY);
+
+        io.to(`team:${data.teamId}`).emit("move-confirmed", result);
+
+        if (socket.data.sessionId) {
+          io.to(`session:${socket.data.sessionId}`).emit("team-moved", {
+            teamId: data.teamId,
+            gridX: result.position.x,
+            gridY: result.position.y,
+          });
+
+          if (result.stranded) {
+            io.to(`team:${data.teamId}`).emit("team-stranded", { message: "Your crew is stranded!" });
+            io.to(`session:${socket.data.sessionId}`).emit("team-status-changed", {
+              teamId: data.teamId,
+              status: "STRANDED",
+            });
+          }
+
+          if (result.wasLost) {
+            io.to(`team:${data.teamId}`).emit("team-lost", {
+              lostUntilDay: result.lostUntilDay,
+              consumed: result.consumption,
+            });
+            io.to(`session:${socket.data.sessionId}`).emit("team-status-changed", {
+              teamId: data.teamId,
+              status: "LOST",
+            });
+          }
+        }
+      } catch (error) {
+        socket.emit("move-error", { message: error instanceof Error ? error.message : "Move failed" });
+      }
+    });
+
     socket.on("disconnect", () => {
       if (socket.data.teamId && socket.data.sessionId) {
         io.to(`session:${socket.data.sessionId}`).emit("team-disconnected", {
@@ -121,6 +159,33 @@ app.prepare().then(() => {
   });
 
   (globalThis as Record<string, unknown>).__io = io;
+
+  setInterval(async () => {
+    try {
+      const activeSessions = await prisma.gameSession.findMany({
+        where: { status: "ACTIVE", timerRunning: true },
+      });
+
+      for (const session of activeSessions) {
+        if (session.timerEnd && session.timerEnd.getTime() <= Date.now()) {
+          const { endDay } = await import("./src/lib/game-actions");
+          const result = await endDay(session.id);
+
+          io.to(`game:${session.id}`).emit("day-ended", {
+            day: result.day,
+            results: result.results,
+            gameEnded: result.gameEnded,
+          });
+
+          if (result.gameEnded) {
+            io.to(`game:${session.id}`).emit("game-ended", {});
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Timer check error:", err);
+    }
+  }, 1000);
 
   httpServer.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);

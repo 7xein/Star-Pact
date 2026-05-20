@@ -531,6 +531,157 @@ export async function endDay(sessionId: string) {
   return { day: session.currentDay, results, gameEnded: false };
 }
 
+// --- Movement ---
+
+export async function submitMove(
+  teamId: string,
+  targetX: number,
+  targetY: number
+) {
+  const team = await prisma.team.findUniqueOrThrow({
+    where: { id: teamId },
+    include: { session: { include: { weatherSchedule: true } }, currentLocation: true, inventory: true, logEntries: true },
+  });
+
+  if (team.session.status !== "ACTIVE") throw new Error("Game is not active");
+  if (team.status !== "ACTIVE") throw new Error("Team is not active");
+  if (team.lostUntilDay && team.lostUntilDay > team.session.currentDay) {
+    throw new Error(`Team is lost until day ${team.lostUntilDay}`);
+  }
+
+  const alreadyMoved = team.logEntries.some((l) => l.dayNumber === team.session.currentDay);
+  if (alreadyMoved) throw new Error("Already moved this day");
+
+  const { getHexNeighbors } = await import("@/lib/hex");
+  const neighbors = getHexNeighbors(
+    team.currentLocation!.gridX,
+    team.currentLocation!.gridY
+  );
+  const isAdj = neighbors.some((n) => n.x === targetX && n.y === targetY);
+  if (!isAdj) throw new Error("Target is not adjacent");
+
+  const targetLoc = await prisma.mapLocation.findUnique({
+    where: { sessionId_gridX_gridY: { sessionId: team.sessionId, gridX: targetX, gridY: targetY } },
+  });
+  if (!targetLoc) throw new Error("Invalid target location");
+
+  const weatherData = team.session.weatherSchedule?.dayData as DayWeather[];
+  const dayWeather = weatherData[team.session.currentDay - 1];
+  const weather = getWeatherForZone(dayWeather, targetLoc.weatherZone);
+
+  const inv = getInventorySnapshot(team.inventory);
+  const protection = checkProtection(inv);
+
+  let wasLost = false;
+  let lostUntilDay: number | null = null;
+  let stranded = false;
+  let provisions = 0;
+  let water = 0;
+  let riggingUsed = false;
+  let spyglassUsed = false;
+
+  if (isStorm(weather) && protection === "NONE") {
+    const lostCost = resolveLost(weather);
+    if (!canAfford(inv, lostCost.provisions, lostCost.water)) {
+      await strandTeam(teamId);
+      await prisma.team.update({ where: { id: teamId }, data: { currentLocationId: targetLoc.id } });
+      await prisma.logEntry.create({
+        data: {
+          teamId, dayNumber: team.session.currentDay,
+          fromLocationId: team.currentLocationId, toLocationId: targetLoc.id,
+          weather, provisionsConsumed: 0, waterConsumed: 0, wasLost: true,
+        },
+      });
+      const updatedTeam = await prisma.team.findUniqueOrThrow({ where: { id: teamId }, include: { inventory: true } });
+      return {
+        success: false, position: { x: targetX, y: targetY },
+        inventory: updatedTeam.inventory, consumption: { provisions: 0, water: 0 },
+        riggingUsed: false, spyglassUsed: false, wasLost: true,
+        lostUntilDay: null, stranded: true, treasureEarned: 0,
+        doubloons: updatedTeam.doubloons, cargoCapacity: updatedTeam.cargoCapacity,
+      };
+    }
+    await deductResources(teamId, lostCost.provisions, lostCost.water);
+    lostUntilDay = team.session.currentDay + 3;
+    await prisma.team.update({ where: { id: teamId }, data: { lostUntilDay } });
+    wasLost = true;
+    provisions = lostCost.provisions;
+    water = lostCost.water;
+  } else {
+    const consumption = calculateConsumption(weather, targetLoc.type, protection);
+    provisions = consumption.provisions;
+    water = consumption.water;
+    riggingUsed = consumption.riggingUsed;
+    spyglassUsed = consumption.spyglassUsed;
+
+    if (!canAfford(inv, provisions, water)) {
+      await strandTeam(teamId);
+      await prisma.team.update({ where: { id: teamId }, data: { currentLocationId: targetLoc.id } });
+      await prisma.logEntry.create({
+        data: {
+          teamId, dayNumber: team.session.currentDay,
+          fromLocationId: team.currentLocationId, toLocationId: targetLoc.id,
+          weather, provisionsConsumed: 0, waterConsumed: 0,
+        },
+      });
+      const updatedTeam = await prisma.team.findUniqueOrThrow({ where: { id: teamId }, include: { inventory: true } });
+      return {
+        success: false, position: { x: targetX, y: targetY },
+        inventory: updatedTeam.inventory, consumption: { provisions: 0, water: 0 },
+        riggingUsed: false, spyglassUsed: false, wasLost: false,
+        lostUntilDay: null, stranded: true, treasureEarned: 0,
+        doubloons: updatedTeam.doubloons, cargoCapacity: updatedTeam.cargoCapacity,
+      };
+    }
+
+    await deductResources(teamId, provisions, water);
+
+    if (riggingUsed) {
+      await prisma.inventory.update({
+        where: { teamId_resourceType: { teamId, resourceType: "RIGGING" } },
+        data: { quantity: { decrement: 1 } },
+      });
+    }
+    if (spyglassUsed) {
+      await prisma.inventory.update({
+        where: { teamId_resourceType: { teamId, resourceType: "SPYGLASS" } },
+        data: { quantity: { decrement: 1 }, totalWeight: { decrement: 10 } },
+      });
+      await prisma.team.update({ where: { id: teamId }, data: { cargoCapacity: { increment: 10 } } });
+    }
+  }
+
+  await prisma.team.update({ where: { id: teamId }, data: { currentLocationId: targetLoc.id } });
+
+  let treasureEarned = 0;
+  if (targetLoc.type === "TREASURE_ISLAND") {
+    treasureEarned = 1;
+    await awardTreasure(teamId);
+  }
+
+  await prisma.logEntry.create({
+    data: {
+      teamId, dayNumber: team.session.currentDay,
+      fromLocationId: team.currentLocationId, toLocationId: targetLoc.id,
+      weather, provisionsConsumed: provisions, waterConsumed: water,
+      riggingUsed, spyglassUsed, treasureEarned, wasLost,
+    },
+  });
+
+  const updatedTeam = await prisma.team.findUniqueOrThrow({
+    where: { id: teamId },
+    include: { inventory: true },
+  });
+
+  return {
+    success: true, position: { x: targetX, y: targetY },
+    inventory: updatedTeam.inventory,
+    consumption: { provisions, water },
+    riggingUsed, spyglassUsed, wasLost, lostUntilDay, stranded: false,
+    treasureEarned, doubloons: updatedTeam.doubloons, cargoCapacity: updatedTeam.cargoCapacity,
+  };
+}
+
 // --- End Game (stub — replaced by Task 4: Scoring) ---
 
 async function endGameInternal(sessionId: string) {
