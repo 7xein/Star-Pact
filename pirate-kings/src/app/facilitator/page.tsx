@@ -6,8 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapContainer } from "@/components/map/MapContainer";
+import { DayControls } from "@/components/game/DayControls";
+import { DayTimer } from "@/components/game/DayTimer";
+import { WeatherDisplay } from "@/components/game/WeatherDisplay";
+import { Scoreboard, type ScoreEntry } from "@/components/game/Scoreboard";
 import { getSocket } from "@/lib/socket";
-import type { ShipPosition } from "@/types/game";
+import type { ShipPosition, DayWeather } from "@/types/game";
 
 type TeamInfo = {
   id: string;
@@ -15,6 +19,7 @@ type TeamInfo = {
   color: string;
   joinCode: string;
   connected: boolean;
+  status: string;
   position: { x: number; y: number } | null;
 };
 
@@ -25,11 +30,15 @@ type SessionInfo = {
 };
 
 export default function FacilitatorPage() {
-  const [phase, setPhase] = useState<"create" | "lobby" | "active">("create");
+  const [phase, setPhase] = useState<"create" | "lobby" | "active" | "scoreboard">("create");
   const [teamCount, setTeamCount] = useState(8);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [teams, setTeams] = useState<TeamInfo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [weather, setWeather] = useState<DayWeather | null>(null);
+  const [timerEnd, setTimerEnd] = useState<string | null>(null);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [scores, setScores] = useState<ScoreEntry[]>([]);
 
   const handleCreate = async () => {
     setLoading(true);
@@ -50,6 +59,7 @@ export default function FacilitatorPage() {
           color: t.color,
           joinCode: t.joinCode,
           connected: false,
+          status: "ACTIVE",
           position: { x: 7, y: 7 },
         }))
       );
@@ -93,10 +103,78 @@ export default function FacilitatorPage() {
 
       const socket = getSocket();
       socket.emit("game-started", { sessionId: session.id });
+
+      socket.on("day-advanced", (data: { day: number; weather: DayWeather; timerEnd: string }) => {
+        setSession((prev) => prev ? { ...prev, currentDay: data.day } : prev);
+        setWeather(data.weather);
+        setTimerEnd(data.timerEnd);
+        setTimerRunning(true);
+      });
+
+      socket.on("day-ended", (data: { day: number; gameEnded: boolean }) => {
+        setTimerEnd(null);
+        setTimerRunning(false);
+        if (data.gameEnded) {
+          handleEndVoyage();
+        }
+      });
+
+      socket.on("team-moved", (data: { teamId: string; gridX: number; gridY: number }) => {
+        setTeams((prev) =>
+          prev.map((t) =>
+            t.id === data.teamId ? { ...t, position: { x: data.gridX, y: data.gridY } } : t
+          )
+        );
+      });
+
+      socket.on("team-status-changed", (data: { teamId: string; status: string }) => {
+        setTeams((prev) =>
+          prev.map((t) =>
+            t.id === data.teamId ? { ...t, status: data.status } : t
+          )
+        );
+      });
+
+      socket.on("game-ended", (data: { scores?: ScoreEntry[] }) => {
+        if (data.scores) {
+          setScores(data.scores);
+          setPhase("scoreboard");
+        }
+      });
+
+      socket.on("timer-paused", () => {
+        setTimerRunning(false);
+      });
+
+      socket.on("timer-resumed", (data: { timerEnd: string }) => {
+        setTimerEnd(data.timerEnd);
+        setTimerRunning(true);
+      });
+
+      socket.on("timer-updated", (data: { timerEnd: string }) => {
+        setTimerEnd(data.timerEnd);
+      });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to start");
     }
   };
+
+  async function handleEndVoyage() {
+    if (!session) return;
+    try {
+      const res = await fetch("/api/game/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setScores(data.scores);
+      setPhase("scoreboard");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to end game");
+    }
+  }
 
   const connectedCount = teams.filter((t) => t.connected).length;
   const joinUrl = typeof window !== "undefined"
@@ -206,16 +284,72 @@ export default function FacilitatorPage() {
       gridY: t.position!.y,
     }));
 
+  if (phase === "scoreboard") {
+    return (
+      <div className="min-h-screen p-6 bg-background">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <h1 className="text-3xl font-bold text-center">Voyage Complete</h1>
+          <Scoreboard scores={scores} sessionId={session?.id ?? ""} mode="facilitator" />
+        </div>
+      </div>
+    );
+  }
+
+  const STATUS_INDICATORS: Record<string, string> = {
+    ACTIVE: "text-green-500",
+    LOST: "text-yellow-500",
+    STRANDED: "text-red-500",
+  };
+
   return (
     <div className="min-h-screen p-6 bg-background">
       <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Day {session?.currentDay}</h1>
-            <p className="text-muted-foreground text-sm">Game Active</p>
+            <h1 className="text-2xl font-bold">Day {session?.currentDay ?? 0}</h1>
+            <DayTimer timerEnd={timerEnd} paused={!timerRunning} />
           </div>
+          <Button variant="destructive" onClick={handleEndVoyage}>
+            End Voyage
+          </Button>
         </div>
+
+        <DayControls
+          sessionId={session?.id ?? ""}
+          currentDay={session?.currentDay ?? 0}
+          timerRunning={timerRunning}
+          onDayAdvanced={(day) => {
+            setSession((prev) => prev ? { ...prev, currentDay: day } : prev);
+          }}
+          onDayEnded={() => {
+            setTimerEnd(null);
+            setTimerRunning(false);
+          }}
+          onTimerUpdate={(paused) => setTimerRunning(!paused)}
+        />
+
+        {weather && (
+          <WeatherDisplay weather={weather} mode="facilitator" teamZone="OPEN_SEA" />
+        )}
+
         <MapContainer mode="facilitator" ships={ships} />
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {teams.map((team) => (
+            <Card key={team.id} className="border">
+              <CardContent className="py-2 px-3 flex items-center gap-2">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: team.color }}
+                />
+                <span className="text-sm font-medium truncate flex-1">{team.name}</span>
+                <span className={`text-xs font-medium ${STATUS_INDICATORS[team.status] ?? "text-muted-foreground"}`}>
+                  {team.status}
+                </span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );
