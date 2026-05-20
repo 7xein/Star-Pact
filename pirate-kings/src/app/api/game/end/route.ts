@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { endGame } from "@/lib/game-actions";
 import { generateCSV } from "@/lib/scoring";
+import { getIO } from "@/lib/io";
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +16,8 @@ export async function POST(request: Request) {
         headers: { "Content-Type": "text/csv", "Content-Disposition": "attachment; filename=results.csv" },
       });
     }
+
+    try { const io = getIO(); io.to("game:" + sessionId).emit("game-ended", { scores }); } catch {}
 
     return NextResponse.json({ scores });
   } catch (error) {

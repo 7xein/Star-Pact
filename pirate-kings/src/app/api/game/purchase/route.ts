@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { purchaseResources } from "@/lib/game-actions";
+import { getIO } from "@/lib/io";
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,13 @@ export async function POST(request: Request) {
     }
 
     const team = await purchaseResources(sessionId, teamId, items);
+
+    try {
+      const io = getIO();
+      io.to("team:" + teamId).emit("purchase-confirmed", { team });
+      io.to("session:" + sessionId).emit("team-purchased", { teamId, team });
+    } catch {}
+
     return NextResponse.json({ team });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Purchase failed";
