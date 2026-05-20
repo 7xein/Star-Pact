@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_LOCATIONS, DEFAULT_WEATHER, TEAM_COLORS } from "@/lib/map-data";
 import { getLocationAt } from "@/lib/map-data";
-import type { LocationType, WeatherZone } from "@/generated/prisma/client";
+import { getPrice, getWeight } from "@/lib/resource-prices";
+import type { LocationType, WeatherZone, ResourceType } from "@/generated/prisma/client";
 
 function generateSessionPrefix(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -101,5 +102,121 @@ export async function startGame(sessionId: string) {
   return prisma.gameSession.update({
     where: { id: sessionId },
     data: { status: "ACTIVE", currentDay: 1 },
+  });
+}
+
+export async function purchaseResources(
+  sessionId: string,
+  teamId: string,
+  items: { resourceType: string; quantity: number }[]
+) {
+  const session = await prisma.gameSession.findUniqueOrThrow({
+    where: { id: sessionId },
+  });
+  if (session.status !== "ACTIVE") {
+    throw new Error("Game is not active");
+  }
+
+  const team = await prisma.team.findUniqueOrThrow({
+    where: { id: teamId },
+    include: { currentLocation: true, inventory: true },
+  });
+
+  if (team.status !== "ACTIVE") {
+    throw new Error("Team is not active");
+  }
+
+  if (!team.currentLocation) {
+    throw new Error("Team has no location");
+  }
+
+  const locType = team.currentLocation.type;
+  if (locType !== "HOME_PORT" && locType !== "TRADING_POST") {
+    throw new Error("Cannot buy at this location");
+  }
+
+  let totalCost = 0;
+  let totalWeight = 0;
+  const validated: { resourceType: string; quantity: number; cost: number; weight: number }[] = [];
+
+  for (const item of items) {
+    if (item.quantity <= 0) {
+      throw new Error(`Invalid quantity for ${item.resourceType}`);
+    }
+
+    const price = getPrice(item.resourceType, locType);
+    if (price === null) {
+      throw new Error(`${item.resourceType} is not available at ${locType}`);
+    }
+
+    const weight = getWeight(item.resourceType);
+    const itemCost = price * item.quantity;
+    const itemWeight = weight * item.quantity;
+
+    totalCost += itemCost;
+    totalWeight += itemWeight;
+
+    validated.push({
+      resourceType: item.resourceType,
+      quantity: item.quantity,
+      cost: itemCost,
+      weight: itemWeight,
+    });
+  }
+
+  if (totalCost > team.doubloons) {
+    throw new Error("Not enough doubloons");
+  }
+
+  if (totalWeight > team.cargoCapacity) {
+    throw new Error("Over cargo capacity");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.team.update({
+      where: { id: teamId },
+      data: {
+        doubloons: { decrement: totalCost },
+        cargoCapacity: { decrement: totalWeight },
+      },
+    });
+
+    for (const item of validated) {
+      await tx.inventory.upsert({
+        where: {
+          teamId_resourceType: {
+            teamId,
+            resourceType: item.resourceType as ResourceType,
+          },
+        },
+        create: {
+          teamId,
+          resourceType: item.resourceType as ResourceType,
+          quantity: item.quantity,
+          totalWeight: item.weight,
+        },
+        update: {
+          quantity: { increment: item.quantity },
+          totalWeight: { increment: item.weight },
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          teamId,
+          dayNumber: session.currentDay,
+          type: "PURCHASE",
+          resourceType: item.resourceType,
+          quantity: item.quantity,
+          cost: item.cost,
+          locationId: team.currentLocationId,
+        },
+      });
+    }
+
+    return tx.team.findUniqueOrThrow({
+      where: { id: teamId },
+      include: { inventory: true, currentLocation: true },
+    });
   });
 }
