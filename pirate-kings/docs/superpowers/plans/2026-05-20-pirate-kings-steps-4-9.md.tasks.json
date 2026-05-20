@@ -1,0 +1,68 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-20-pirate-kings-steps-4-9.md",
+  "tasks": [
+    {
+      "id": 14,
+      "subject": "Task 0: Resource Prices & Consumption Engine",
+      "status": "pending",
+      "description": "**Goal:** Create the pure-function modules for resource pricing, consumption calculation, and storm protection.\n\n**Files:**\n- Create: `src/lib/resource-prices.ts`\n- Create: `src/lib/consumption.ts`\n- Create: `src/lib/__tests__/consumption.test.ts`\n\n**Acceptance Criteria:**\n- [ ] getPrice returns correct prices\n- [ ] calculateConsumption returns correct values for all 8 scenarios\n- [ ] checkProtection priority order correct\n- [ ] resolveLost returns 3-day doubled costs\n- [ ] Friendly Cove zeroes water\n- [ ] Home Port zeroes all consumption\n- [ ] All tests pass\n\n**Verify:** `npx vitest run src/lib/__tests__/consumption.test.ts`\n\n```json:metadata\n{\"files\": [\"src/lib/resource-prices.ts\", \"src/lib/consumption.ts\", \"src/lib/__tests__/consumption.test.ts\"], \"verifyCommand\": \"npx vitest run src/lib/__tests__/consumption.test.ts\", \"acceptanceCriteria\": [\"getPrice returns correct prices\", \"calculateConsumption returns correct values for all 8 scenarios\", \"checkProtection priority order correct\", \"resolveLost returns 3-day doubled costs\", \"Friendly Cove zeroes water\", \"Home Port zeroes all consumption\", \"All tests pass\"]}\n```"
+    },
+    {
+      "id": 15,
+      "subject": "Task 1: Purchase Resources Server Logic & API",
+      "status": "pending",
+      "blockedBy": [14],
+      "description": "**Goal:** Implement server-side purchase logic with full validation and API route.\n\n**Files:**\n- Modify: `src/lib/game-actions.ts`\n- Create: `src/app/api/game/purchase/route.ts`\n\n**Acceptance Criteria:**\n- [ ] purchaseResources validates location, budget, capacity, restrictions\n- [ ] Atomic upsert inventory + deduct doubloons + reduce capacity\n- [ ] Creates Transaction records\n- [ ] Returns specific error messages\n- [ ] API route wires up correctly\n\n**Verify:** `curl -X POST localhost:3000/api/game/purchase`\n\n```json:metadata\n{\"files\": [\"src/lib/game-actions.ts\", \"src/app/api/game/purchase/route.ts\"], \"verifyCommand\": \"curl -X POST localhost:3000/api/game/purchase\", \"acceptanceCriteria\": [\"purchaseResources validates location, budget, capacity, restrictions\", \"Atomic upsert inventory + deduct doubloons + reduce capacity\", \"Creates Transaction records\", \"Returns specific error messages\", \"API route wires up correctly\"]}\n```"
+    },
+    {
+      "id": 16,
+      "subject": "Task 2: Day Progression & Timer",
+      "status": "pending",
+      "blockedBy": [14],
+      "description": "**Goal:** Implement day advance, timer controls, and day-end processing.\n\n**Files:**\n- Modify: `src/lib/game-actions.ts`\n- Create: `src/app/api/game/advance-day/route.ts`\n- Create: `src/app/api/game/end-day/route.ts`\n- Create: `src/app/api/game/timer/pause/route.ts`\n- Create: `src/app/api/game/timer/resume/route.ts`\n- Create: `src/app/api/game/timer/extend/route.ts`\n\n**Acceptance Criteria:**\n- [ ] advanceDay increments day and sets timer\n- [ ] endDay processes stay-in-place consumption\n- [ ] Treasure Island awards chests\n- [ ] Timer pause/resume/extend work correctly\n- [ ] Day 25 auto-triggers game end\n- [ ] All API routes work\n\n**Verify:** `curl -X POST localhost:3000/api/game/advance-day`\n\n```json:metadata\n{\"files\": [\"src/lib/game-actions.ts\", \"src/app/api/game/advance-day/route.ts\", \"src/app/api/game/end-day/route.ts\", \"src/app/api/game/timer/pause/route.ts\", \"src/app/api/game/timer/resume/route.ts\", \"src/app/api/game/timer/extend/route.ts\"], \"verifyCommand\": \"curl -X POST localhost:3000/api/game/advance-day\", \"acceptanceCriteria\": [\"advanceDay increments day and sets timer\", \"endDay processes stay-in-place consumption\", \"Treasure Island awards chests\", \"Timer pause/resume/extend work correctly\", \"Day 25 auto-triggers game end\", \"All API routes work\"]}\n```"
+    },
+    {
+      "id": 17,
+      "subject": "Task 3: Movement & Socket.io Wiring",
+      "status": "pending",
+      "blockedBy": [14, 16],
+      "description": "**Goal:** Handle submit-move Socket.io event — validate movement, calculate consumption, apply storm/lost/stranded logic, broadcast results.\n\n**Files:**\n- Modify: `src/lib/game-actions.ts`\n- Modify: `server.ts`\n\n**Acceptance Criteria:**\n- [ ] submit-move validates and processes movement\n- [ ] Adjacency, lost status, already-moved checks\n- [ ] Consumption based on weather at destination\n- [ ] Storm protection priority chain\n- [ ] Lost 3-day auto-resolve\n- [ ] Stranding on insufficient resources\n- [ ] Socket.io events emitted correctly\n- [ ] Timer auto-triggers endDay\n\n**Verify:** Start game, advance day, emit submit-move -> receive move-confirmed\n\n```json:metadata\n{\"files\": [\"src/lib/game-actions.ts\", \"server.ts\"], \"verifyCommand\": \"manual Socket.io test\", \"acceptanceCriteria\": [\"submit-move validates and processes movement\", \"Adjacency, lost status, already-moved checks\", \"Consumption based on weather at destination\", \"Storm protection priority chain\", \"Lost 3-day auto-resolve\", \"Stranding on insufficient resources\", \"Socket.io events emitted correctly\", \"Timer auto-triggers endDay\"]}\n```"
+    },
+    {
+      "id": 18,
+      "subject": "Task 4: Scoring & End Game",
+      "status": "pending",
+      "blockedBy": [14],
+      "description": "**Goal:** Implement scoring logic, game end processing, and CSV export.\n\n**Files:**\n- Create: `src/lib/scoring.ts`\n- Create: `src/lib/__tests__/scoring.test.ts`\n- Modify: `src/lib/game-actions.ts`\n- Create: `src/app/api/game/end/route.ts`\n\n**Acceptance Criteria:**\n- [ ] Home Port teams score = treasure count\n- [ ] Non-Home Port = SHIPWRECKED score 0\n- [ ] STRANDED = score 0\n- [ ] Tiebreaker by return day\n- [ ] CSV export works\n- [ ] POST /api/game/end works\n\n**Verify:** `npx vitest run src/lib/__tests__/scoring.test.ts`\n\n```json:metadata\n{\"files\": [\"src/lib/scoring.ts\", \"src/lib/__tests__/scoring.test.ts\", \"src/lib/game-actions.ts\", \"src/app/api/game/end/route.ts\"], \"verifyCommand\": \"npx vitest run src/lib/__tests__/scoring.test.ts\", \"acceptanceCriteria\": [\"Home Port teams score = treasure count\", \"Non-Home Port = SHIPWRECKED score 0\", \"STRANDED = score 0\", \"Tiebreaker by return day\", \"CSV export works\", \"POST /api/game/end works\"]}\n```"
+    },
+    {
+      "id": 19,
+      "subject": "Task 5: Game UI Components",
+      "status": "pending",
+      "blockedBy": [14],
+      "description": "**Goal:** Create BuyPanel, DayTimer, WeatherDisplay, DayControls, Scoreboard, StrandedOverlay.\n\n**Files:**\n- Create: `src/components/game/BuyPanel.tsx`\n- Create: `src/components/game/DayTimer.tsx`\n- Create: `src/components/game/WeatherDisplay.tsx`\n- Create: `src/components/game/DayControls.tsx`\n- Create: `src/components/game/Scoreboard.tsx`\n- Create: `src/components/game/StrandedOverlay.tsx`\n\n**Acceptance Criteria:**\n- [ ] BuyPanel renders with +/- and confirm\n- [ ] DayTimer countdown synced\n- [ ] WeatherDisplay team vs facilitator mode\n- [ ] DayControls all buttons work\n- [ ] Scoreboard with ranks and CSV\n- [ ] StrandedOverlay full screen\n\n**Verify:** `npx next build`\n\n```json:metadata\n{\"files\": [\"src/components/game/BuyPanel.tsx\", \"src/components/game/DayTimer.tsx\", \"src/components/game/WeatherDisplay.tsx\", \"src/components/game/DayControls.tsx\", \"src/components/game/Scoreboard.tsx\", \"src/components/game/StrandedOverlay.tsx\"], \"verifyCommand\": \"npx next build\", \"acceptanceCriteria\": [\"BuyPanel renders with +/- and confirm\", \"DayTimer countdown synced\", \"WeatherDisplay team vs facilitator mode\", \"DayControls all buttons work\", \"Scoreboard with ranks and CSV\", \"StrandedOverlay full screen\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 6: Wire Up Facilitator Page",
+      "status": "pending",
+      "blockedBy": [16, 18, 19],
+      "description": "**Goal:** Integrate all new components into the facilitator page.\n\n**Files:**\n- Modify: `src/app/facilitator/page.tsx`\n\n**Acceptance Criteria:**\n- [ ] Day controls render and work\n- [ ] Weather announcement all 3 zones\n- [ ] Timer synced\n- [ ] Team status real-time updates\n- [ ] Map updates on move\n- [ ] Scoreboard after game end\n- [ ] End Voyage button\n\n**Verify:** Manual browser test\n\n```json:metadata\n{\"files\": [\"src/app/facilitator/page.tsx\"], \"verifyCommand\": \"manual browser test\", \"acceptanceCriteria\": [\"Day controls render and work\", \"Weather announcement all 3 zones\", \"Timer synced\", \"Team status real-time updates\", \"Map updates on move\", \"Scoreboard after game end\", \"End Voyage button\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 7: Wire Up Team Dashboard",
+      "status": "pending",
+      "blockedBy": [15, 17, 19],
+      "description": "**Goal:** Integrate all new components into the team captain's play page.\n\n**Files:**\n- Modify: `src/app/play/[teamId]/page.tsx`\n\n**Acceptance Criteria:**\n- [ ] BuyPanel at Home Port/Trading Post\n- [ ] Weather for own zone\n- [ ] Timer synced\n- [ ] Hex tap emits submit-move\n- [ ] move-confirmed updates state\n- [ ] Lost alert\n- [ ] StrandedOverlay\n- [ ] Scoreboard with highlight\n- [ ] 375px mobile viewport\n\n**Verify:** Manual browser test at 375px\n\n```json:metadata\n{\"files\": [\"src/app/play/[teamId]/page.tsx\"], \"verifyCommand\": \"manual browser test at 375px\", \"acceptanceCriteria\": [\"BuyPanel at Home Port/Trading Post\", \"Weather for own zone\", \"Timer synced\", \"Hex tap emits submit-move\", \"move-confirmed updates state\", \"Lost alert\", \"StrandedOverlay\", \"Scoreboard with highlight\", \"375px mobile viewport\"]}\n```"
+    },
+    {
+      "id": 22,
+      "subject": "Task 8: Socket.io Event Broadcasting from API Routes",
+      "status": "pending",
+      "blockedBy": [15, 16, 17, 18],
+      "description": "**Goal:** Ensure all API route actions broadcast Socket.io events to connected clients.\n\n**Files:**\n- Create: `src/lib/io.ts`\n- Modify all 7 API routes under `src/app/api/game/`\n\n**Acceptance Criteria:**\n- [ ] purchase-confirmed broadcast\n- [ ] day-advanced broadcast\n- [ ] day-ended broadcast\n- [ ] timer events broadcast\n- [ ] game-ended broadcast\n- [ ] Uses global __io instance\n\n**Verify:** Facilitator advances day -> team receives weather\n\n```json:metadata\n{\"files\": [\"src/lib/io.ts\", \"src/app/api/game/purchase/route.ts\", \"src/app/api/game/advance-day/route.ts\", \"src/app/api/game/end-day/route.ts\", \"src/app/api/game/end/route.ts\", \"src/app/api/game/timer/pause/route.ts\", \"src/app/api/game/timer/resume/route.ts\", \"src/app/api/game/timer/extend/route.ts\"], \"verifyCommand\": \"manual Socket.io test\", \"acceptanceCriteria\": [\"purchase-confirmed broadcast\", \"day-advanced broadcast\", \"day-ended broadcast\", \"timer events broadcast\", \"game-ended broadcast\", \"Uses global __io instance\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-20T12:00:00.000Z"
+}
