@@ -1,0 +1,24 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-21-playtest-prep.md",
+  "tasks": [
+    {
+      "id": 10,
+      "subject": "Task 0: Fix Prisma Client Generation for Tests",
+      "status": "pending",
+      "description": "**Goal:** Make `npx vitest run` pass all suites by ensuring the Prisma client is generated before tests execute.\n\n**Files:**\n- Modify: `package.json`\n\n**Acceptance Criteria:**\n- [ ] `npx vitest run` passes all test suites including `game-actions.test.ts`\n- [ ] `npm run dev` generates the Prisma client before starting\n\n**Verify:** `npm test`\n\n```json:metadata\n{\"files\": [\"package.json\"], \"verifyCommand\": \"npm test\", \"acceptanceCriteria\": [\"npx vitest run passes all test suites\", \"npm run dev generates Prisma client\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 1: Mobile Responsiveness (Team Captain at 375px)",
+      "status": "pending",
+      "description": "**Goal:** Make every screen the team captain touches work on a 375px mobile viewport.\n\n**Files:**\n- Modify: `src/app/join/page.tsx`\n- Modify: `src/app/play/[teamId]/page.tsx`\n- Modify: `src/components/map/MapContainer.tsx`\n- Modify: `src/components/map/HexGrid.tsx`\n- Modify: `src/components/map/HexTile.tsx`\n- Modify: `src/components/game/BuyPanel.tsx`\n\n```json:metadata\n{\"files\": [\"src/app/join/page.tsx\", \"src/app/play/[teamId]/page.tsx\", \"src/components/map/MapContainer.tsx\", \"src/components/map/HexGrid.tsx\", \"src/components/map/HexTile.tsx\", \"src/components/game/BuyPanel.tsx\"], \"verifyCommand\": \"Chrome DevTools at 375x667\", \"acceptanceCriteria\": [\"Join page input fits 375px\", \"Hex map fits viewport\", \"Tap targets >= 44px\", \"BuyPanel rows don't overlap\", \"Inventory 2-col on mobile\", \"Header doesn't collide\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 2: Facilitator Projector Polish (Responsive Scaling)",
+      "status": "pending",
+      "description": "**Goal:** Make the facilitator page readable from across a room using CSS breakpoints at xl/2xl.\n\n**Files:**\n- Modify: `src/app/facilitator/page.tsx`\n- Modify: `src/components/game/DayTimer.tsx`\n- Modify: `src/components/game/WeatherDisplay.tsx`\n- Modify: `src/components/game/DayControls.tsx`\n- Modify: `src/components/game/Scoreboard.tsx`\n\n```json:metadata\n{\"files\": [\"src/app/facilitator/page.tsx\", \"src/components/game/DayTimer.tsx\", \"src/components/game/WeatherDisplay.tsx\", \"src/components/game/DayControls.tsx\", \"src/components/game/Scoreboard.tsx\"], \"verifyCommand\": \"Chrome at 1920x1080 fullscreen\", \"acceptanceCriteria\": [\"Day/timer readable from 20ft\", \"Weather visible at distance\", \"Team cards readable\", \"Join URL prominent\", \"Scoreboard scales\", \"No breakage at intermediate widths\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-21T12:00:00.000Z"
+}
