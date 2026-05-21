@@ -235,7 +235,7 @@ export default function FacilitatorPage() {
               <p className="text-sm text-muted-foreground uppercase tracking-wider">
                 Join at
               </p>
-              <p className="text-2xl font-bold text-primary">{joinUrl}</p>
+              <p className="text-2xl xl:text-5xl 2xl:text-6xl font-bold text-primary">{joinUrl}</p>
             </CardContent>
           </Card>
 
@@ -252,10 +252,10 @@ export default function FacilitatorPage() {
                     className="w-6 h-6 rounded-full mx-auto"
                     style={{ backgroundColor: team.color }}
                   />
-                  <p className="font-bold text-sm">{team.name}</p>
-                  <p className="font-mono text-lg">{team.joinCode}</p>
+                  <p className="font-bold text-sm xl:text-lg">{team.name}</p>
+                  <p className="font-mono text-lg xl:text-2xl">{team.joinCode}</p>
                   <p
-                    className={`text-xs ${
+                    className={`text-xs xl:text-base ${
                       team.connected ? "text-green-500" : "text-orange-400"
                     }`}
                   >
@@ -266,7 +266,7 @@ export default function FacilitatorPage() {
             ))}
           </div>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm xl:text-lg text-muted-foreground">
             {connectedCount} of {teams.length} teams connected
           </p>
         </div>
@@ -288,7 +288,7 @@ export default function FacilitatorPage() {
     return (
       <div className="min-h-screen p-6 bg-background">
         <div className="max-w-2xl mx-auto space-y-6">
-          <h1 className="text-3xl font-bold text-center">Voyage Complete</h1>
+          <h1 className="text-3xl xl:text-5xl 2xl:text-6xl font-bold text-center">Voyage Complete</h1>
           <Scoreboard scores={scores} sessionId={session?.id ?? ""} mode="facilitator" />
         </div>
       </div>
@@ -306,10 +306,10 @@ export default function FacilitatorPage() {
       <div className="max-w-6xl mx-auto space-y-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Day {session?.currentDay ?? 0}</h1>
+            <h1 className="text-2xl xl:text-5xl 2xl:text-6xl font-bold">Day {session?.currentDay ?? 0}</h1>
             <DayTimer timerEnd={timerEnd} paused={!timerRunning} />
           </div>
-          <Button variant="destructive" onClick={handleEndVoyage}>
+          <Button variant="destructive" onClick={handleEndVoyage} className="xl:text-lg xl:px-6 xl:py-3">
             End Voyage
           </Button>
         </div>
@@ -337,13 +337,13 @@ export default function FacilitatorPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {teams.map((team) => (
             <Card key={team.id} className="border">
-              <CardContent className="py-2 px-3 flex items-center gap-2">
+              <CardContent className="py-2 xl:py-3 px-3 xl:px-4 flex items-center gap-2 xl:gap-3">
                 <span
-                  className="h-3 w-3 shrink-0 rounded-full"
+                  className="h-3 w-3 xl:h-5 xl:w-5 shrink-0 rounded-full"
                   style={{ backgroundColor: team.color }}
                 />
-                <span className="text-sm font-medium truncate flex-1">{team.name}</span>
-                <span className={`text-xs font-medium ${STATUS_INDICATORS[team.status] ?? "text-muted-foreground"}`}>
+                <span className="text-sm xl:text-lg font-medium truncate flex-1">{team.name}</span>
+                <span className={`text-xs xl:text-base font-medium ${STATUS_INDICATORS[team.status] ?? "text-muted-foreground"}`}>
                   {team.status}
                 </span>
               </CardContent>

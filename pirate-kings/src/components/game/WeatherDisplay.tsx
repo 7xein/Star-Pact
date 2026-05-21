@@ -25,9 +25,9 @@ type WeatherDisplayProps = {
 
 function WeatherBadge({ type }: { type: WeatherType }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-xl">{WEATHER_ICONS[type]}</span>
-      <span className="text-sm font-medium">{WEATHER_LABELS[type]}</span>
+    <div className="flex items-center gap-1.5 xl:gap-3 justify-center">
+      <span className="text-xl xl:text-4xl 2xl:text-5xl">{WEATHER_ICONS[type]}</span>
+      <span className="text-sm xl:text-xl 2xl:text-2xl font-medium">{WEATHER_LABELS[type]}</span>
     </div>
   );
 }
@@ -75,8 +75,8 @@ export function WeatherDisplay({
       <CardContent>
         <div className="grid grid-cols-3 gap-3">
           {zones.map((zone) => (
-            <div key={zone.key} className="text-center space-y-1">
-              <p className="text-xs text-muted-foreground">{zone.label}</p>
+            <div key={zone.key} className="text-center space-y-1 xl:space-y-2">
+              <p className="text-xs xl:text-lg 2xl:text-xl text-muted-foreground">{zone.label}</p>
               <WeatherBadge type={weather[zone.key]} />
             </div>
           ))}

@@ -40,14 +40,14 @@ export function DayTimer({ timerEnd, paused }: DayTimerProps) {
 
   if (!timerEnd) {
     return (
-      <span className="font-mono text-lg text-muted-foreground">--:--</span>
+      <span className="font-mono text-lg xl:text-4xl 2xl:text-5xl text-muted-foreground">--:--</span>
     );
   }
 
   return (
     <span
       className={cn(
-        "font-mono text-lg font-bold",
+        "font-mono text-lg xl:text-4xl 2xl:text-5xl font-bold xl:tracking-wider",
         isLow && "text-red-500 animate-pulse",
         paused && "text-amber-500"
       )}

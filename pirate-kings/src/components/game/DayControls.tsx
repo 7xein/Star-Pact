@@ -78,14 +78,14 @@ export function DayControls({
   if (!timerRunning) {
     return (
       <Card>
-        <CardContent className="py-3 flex items-center justify-center gap-2">
-          <Button onClick={handleAdvanceDay} disabled={loading}>
+        <CardContent className="py-3 xl:py-5 flex items-center justify-center gap-2 xl:gap-4">
+          <Button onClick={handleAdvanceDay} disabled={loading} className="xl:text-lg xl:px-6 xl:py-3">
             {currentDay === 0
               ? "Start Day 1"
               : `Next Day (${currentDay + 1})`}
           </Button>
           {paused && currentDay > 0 && (
-            <Button variant="outline" onClick={handleResume} disabled={loading}>
+            <Button variant="outline" onClick={handleResume} disabled={loading} className="xl:text-lg xl:px-6 xl:py-3">
               Resume
             </Button>
           )}
@@ -96,20 +96,20 @@ export function DayControls({
 
   return (
     <Card>
-      <CardContent className="py-3 flex items-center justify-center gap-2 flex-wrap">
+      <CardContent className="py-3 xl:py-5 flex items-center justify-center gap-2 xl:gap-4 flex-wrap">
         {paused ? (
-          <Button variant="outline" onClick={handleResume} disabled={loading}>
+          <Button variant="outline" onClick={handleResume} disabled={loading} className="xl:text-lg xl:px-6 xl:py-3">
             Resume
           </Button>
         ) : (
-          <Button variant="outline" onClick={handlePause} disabled={loading}>
+          <Button variant="outline" onClick={handlePause} disabled={loading} className="xl:text-lg xl:px-6 xl:py-3">
             Pause
           </Button>
         )}
-        <Button variant="outline" onClick={handleExtend} disabled={loading}>
+        <Button variant="outline" onClick={handleExtend} disabled={loading} className="xl:text-lg xl:px-6 xl:py-3">
           +1 Min
         </Button>
-        <Button variant="destructive" onClick={handleEndDay} disabled={loading}>
+        <Button variant="destructive" onClick={handleEndDay} disabled={loading} className="xl:text-lg xl:px-6 xl:py-3">
           End Day
         </Button>
       </CardContent>

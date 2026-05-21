@@ -33,7 +33,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-full px-2 xl:px-3 py-0.5 xl:py-1 text-xs xl:text-sm font-medium",
         styles[status]
       )}
     >
@@ -78,15 +78,15 @@ export function Scoreboard({
             <div
               key={entry.teamId}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm",
+                "flex items-center gap-2 xl:gap-3 rounded-lg px-2 xl:px-3 py-1.5 xl:py-2.5 text-sm xl:text-lg",
                 isHighlighted && "bg-muted ring-1 ring-foreground/10"
               )}
             >
-              <span className="w-5 text-center font-bold text-muted-foreground">
+              <span className="w-5 xl:w-8 text-center font-bold text-muted-foreground">
                 {entry.rank}
               </span>
               <span
-                className="h-3 w-3 shrink-0 rounded-full"
+                className="h-3 w-3 xl:h-5 xl:w-5 shrink-0 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
               <span className="flex-1 font-medium truncate">
