@@ -119,10 +119,10 @@ export function BuyPanel({
                   {price} db / {entry.weight}t
                 </p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
-                  size="icon-xs"
+                  size="icon-sm"
                   onClick={() => adjustQuantity(key, -1)}
                   disabled={qty <= 0}
                 >
@@ -133,7 +133,7 @@ export function BuyPanel({
                 </span>
                 <Button
                   variant="outline"
-                  size="icon-xs"
+                  size="icon-sm"
                   onClick={() => adjustQuantity(key, 1)}
                 >
                   +

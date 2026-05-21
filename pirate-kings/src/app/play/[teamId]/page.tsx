@@ -241,10 +241,10 @@ export default function PlayPage({
       )}
 
       {/* Header row */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
         <div className="flex items-center gap-2">
           <div
-            className="w-4 h-4 rounded-full"
+            className="w-4 h-4 rounded-full shrink-0"
             style={{ backgroundColor: team.color }}
           />
           <span className="font-bold text-sm">{team.name}</span>
@@ -258,7 +258,7 @@ export default function PlayPage({
           {timerEnd && <DayTimer timerEnd={timerEnd} paused={!isActive} />}
           <div className="flex items-center gap-1">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2 h-2 rounded-full shrink-0 ${
                 connected ? "bg-green-500" : "bg-red-500"
               }`}
             />
@@ -310,7 +310,7 @@ export default function PlayPage({
 
       {/* Inventory */}
       {inventory.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {inventory.map((item) => (
             <Card key={item.resourceType}>
               <CardContent className="py-2 text-center">

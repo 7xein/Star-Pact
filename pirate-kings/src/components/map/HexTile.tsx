@@ -51,18 +51,28 @@ export function HexTile({
         opacity={isSelectable ? 1 : isAdjacent ? 0.8 : 1}
       />
       {location.type !== "OPEN_SEA" && (
-        <text
-          x={40}
-          y={44}
-          textAnchor="middle"
-          fill={colors.stroke}
-          fontSize={9}
-          fontWeight="bold"
-        >
-          {location.name.length > 12
-            ? location.name.split(" ").slice(0, 2).join("\n")
-            : location.name}
-        </text>
+        <>
+          <rect
+            x={8}
+            y={32}
+            width={64}
+            height={18}
+            rx={3}
+            fill="rgba(0,0,0,0.6)"
+          />
+          <text
+            x={40}
+            y={46}
+            textAnchor="middle"
+            fill={colors.stroke}
+            fontSize={10}
+            fontWeight="bold"
+          >
+            {location.name.length > 12
+              ? location.name.split(" ").slice(0, 2).join(" ")
+              : location.name}
+          </text>
+        </>
       )}
     </g>
   );

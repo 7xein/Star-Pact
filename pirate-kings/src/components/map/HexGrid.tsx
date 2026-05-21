@@ -78,7 +78,6 @@ export function HexGrid({
     <svg
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
       className="w-full h-auto"
-      style={{ maxHeight: mode === "team" ? "60vh" : "80vh" }}
     >
       <rect width={svgWidth} height={svgHeight} fill="#0a1628" />
       {hexes}

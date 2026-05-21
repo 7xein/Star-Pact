@@ -39,7 +39,8 @@ export function MapContainer(props: MapContainerProps) {
   return (
     <div
       ref={containerRef}
-      className="overflow-hidden touch-none"
+      className="overflow-auto touch-none rounded-lg"
+      style={{ maxHeight: props.mode === "team" ? "50vh" : "80vh" }}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >

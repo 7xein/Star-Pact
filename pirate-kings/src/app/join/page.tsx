@@ -48,7 +48,7 @@ export default function JoinPage() {
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
             placeholder="KRAKEN-A1"
-            className="text-center text-2xl font-mono tracking-wider"
+            className="text-center text-lg md:text-2xl font-mono tracking-wider"
             maxLength={12}
           />
           {error && (
