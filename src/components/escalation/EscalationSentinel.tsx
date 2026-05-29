@@ -46,6 +46,9 @@ function injectKeyframes() {
                            100% { transform: translate(0,0) } }
     @keyframes snFadeIn  { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform: translateY(0) } }
     @keyframes snPulseDot{ 0%,100% { opacity: 0.4 } 50% { opacity: 1 } }
+    @media (prefers-reduced-motion: reduce) {
+      [style*="snBreathe"], [style*="snDrift"], [style*="snPulseDot"] { animation: none !important; }
+    }
   `
   document.head.appendChild(s)
 }
@@ -388,7 +391,7 @@ function SNRule({ width = '100%', accent = SN_HAIR, opacity = 1, style = {} }: {
   return <div style={{ position: 'relative', width, height: 1, background: accent, opacity, ...style }} />
 }
 
-function SNLabel({ children, color = SN_FAINT, size = 10, style = {} }: { children: React.ReactNode; color?: string; size?: number; style?: React.CSSProperties }) {
+function SNLabel({ children, color = SN_FAINT, size = 10, style = {} }: { children: React.ReactNode; color?: string; size?: number | string; style?: React.CSSProperties }) {
   return <div style={{
     fontFamily: SN_MONO, fontSize: size, letterSpacing: '0.32em',
     color, textTransform: 'uppercase', fontWeight: 500, ...style,
@@ -563,22 +566,23 @@ function SNStarfield({ density = 1 }: { density?: number }) {
       }
       return { stars, depth }
     })
+    const reduce = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let raf: number
     const t0 = performance.now()
     const draw = () => {
       const t = (performance.now() - t0) / 1000
       ctx.clearRect(0, 0, c.width, c.height)
       for (const { stars, depth } of layers) {
-        const drift = Math.sin(t * 0.08) * 6 * depth * dpr
+        const drift = reduce ? 0 : Math.sin(t * 0.08) * 6 * depth * dpr
         for (const s of stars) {
-          const a = Math.max(0.05, s.a + Math.sin(t * s.tw + s.ph) * 0.15 * s.a)
+          const a = reduce ? s.a : Math.max(0.05, s.a + Math.sin(t * s.tw + s.ph) * 0.15 * s.a)
           ctx.fillStyle = `rgba(255,245,225,${a})`
           ctx.beginPath()
           ctx.arc(s.x + drift, s.y, s.r, 0, Math.PI * 2)
           ctx.fill()
         }
       }
-      raf = requestAnimationFrame(draw)
+      if (!reduce) raf = requestAnimationFrame(draw)   // static single frame when reduced motion
     }
     draw()
     return () => cancelAnimationFrame(raf)
@@ -639,37 +643,54 @@ function SNAlly({ planet, side = 'attack', size = 36, registerRef = null }: { pl
   )
 }
 
-// ─── Scaling wrapper for 1440×900 facilitator/alliance views ───
-// Fits the artboard into any viewport via uniform CSS scale, preserving aspect.
-// Renders via a portal to document.body so it escapes any ancestor `zoom` /
-// `transform` containers (e.g., the facilitator dashboard's `zoom: 1.35` TV
-// scaling) that would otherwise inflate it beyond the viewport.
-export function SentinelFitToViewport({ children }: { children: React.ReactNode }) {
-  // Stretch the 16:10 artboard to fill the viewport EXACTLY — no letterbox bars,
-  // no cropped edges. The scale is non-uniform on purpose: on the design's native
-  // 16:10 it's a clean uniform scale; on a 16:9 projector it's a slight horizontal
-  // stretch (the deliberate tradeoff for full-bleed). The facilitator's ally-launch
-  // rocket math reads scaleX/scaleY off the root rect, so it stays correct here.
-  const [scale, setScale] = React.useState({ x: 1, y: 1 })
+// Render an artboard-px value as a full-bleed responsive length that tracks the
+// SAME uniform "contain" scale as the composition: P px on the 1440×900 board
+// === min(P/14.4 vw, P/9 vh). Used for full-bleed overlay text so it grows with
+// the viewport exactly like the scaled scene does, with no distortion.
+const snPx = (p: number) => `min(${(p / 14.4).toFixed(4)}vw, ${(p / 9).toFixed(4)}vh)`
+
+// ─── Stage: full-bleed backdrop + uniform-scaled, centered composition ───
+// The big-screen escalation surfaces are authored on a fixed 1440×900 artboard.
+// To fill ANY viewport with no letterbox bars AND no distortion we:
+//   • bleed the starfield + red/blue washes edge-to-edge (the full viewport), and
+//   • uniformly scale (contain) the 1440×900 composition and center it on top.
+// The "letterbox" region around the composition is just more backdrop, so the
+// bars disappear. Uniform scale keeps planets perfectly circular and rockets
+// dead-on-target, so the rocket/shockwave geometry needs no changes at all.
+// `overlay` renders full-bleed (un-scaled) above everything — used for the
+// hit/resolution washes that must cover the whole screen; their type uses
+// snPx() so it tracks the same scale. Portals to <body> to escape the
+// dashboard's `zoom`/transform containers.
+function SNStage({ children, overlay }: { children: React.ReactNode; overlay?: React.ReactNode }) {
+  const [scale, setScale] = React.useState(1)
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => {
     setMounted(true)
-    const onResize = () => {
-      setScale({ x: window.innerWidth / 1440, y: window.innerHeight / 900 })
-    }
+    const onResize = () => setScale(Math.min(window.innerWidth / 1440, window.innerHeight / 900))
     onResize()
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
   }, [])
   if (!mounted) return null
   const node = (
-    <div style={{
-      position: 'fixed', inset: 0, background: SN_BG, zIndex: 200,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-    }}>
-      <div style={{ width: 1440, height: 900, transform: `scale(${scale.x}, ${scale.y})`, transformOrigin: 'center center', flexShrink: 0 }}>
+    <div style={{ position: 'fixed', inset: 0, background: SN_BG, zIndex: 200, overflow: 'hidden' }}>
+      {/* Full-bleed ambience — fills every pixel so no bars are visible */}
+      <SNStarfield density={1.0}/>
+      <SNBackdrop tintLeft={SN_RED} tintRight={SN_BLUE} opacity={0.18}/>
+      {/* Composition — uniform scale (circular planets, on-target rockets), centered */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        width: 1440, height: 900,
+        transform: `translate(-50%, -50%) scale(${scale})`,
+        transformOrigin: 'center center',
+      }}>
         {children}
       </div>
+      {overlay}
     </div>
   )
   return createPortal(node, document.body)
@@ -823,14 +844,81 @@ export function EscalationSentinelFacilitator({
                 : game.attackerShots > game.defenderShots ? 'defender'
                 : null
 
+  // Hit / resolution take over the WHOLE screen (not just the scaled artboard),
+  // so they render full-bleed in the stage overlay with snPx() type that tracks
+  // the composition's scale. No seam, no letterbox, undistorted.
+  const phaseOverlay = (
+    <>
+      {game.phase === 'hit' && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${SN_RED}33, transparent 70%), rgba(5,3,8,0.65)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
+          animation: 'snFadeIn 0.4s ease-out', pointerEvents: 'none', textAlign: 'center', padding: '0 4vw',
+        }}>
+          <SNLabel color={SN_RED} size={snPx(13)} style={{ letterSpacing: '0.5em' }}>DIRECT HIT</SNLabel>
+          <div style={{
+            fontFamily: SN_SERIF, fontSize: snPx(140), fontWeight: 300, fontStyle: 'italic',
+            letterSpacing: '-0.04em', lineHeight: 1, marginTop: snPx(8),
+            color: SN_INK, textShadow: `0 0 40px ${SN_RED}88`, whiteSpace: 'nowrap',
+          }}>
+            {game.loser === 'attacker'
+              ? <>{A.name.charAt(0) + A.name.slice(1).toLowerCase()}<span style={{ color: SN_RED }}> falls.</span></>
+              : <>{D.name.charAt(0) + D.name.slice(1).toLowerCase()}<span style={{ color: SN_RED }}> falls.</span></>}
+          </div>
+          <SNLabel color={SN_DIM} size={snPx(11)} style={{ marginTop: snPx(28) }}>
+            {game.loser === 'attacker' ? `${A.name} FAILED TO RESPOND` : `${D.name} FAILED TO RESPOND`}
+          </SNLabel>
+        </div>
+      )}
+      {game.phase === 'resolution' && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${SN_GOLD}1a, transparent 70%), rgba(5,3,8,0.7)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
+          animation: 'snFadeIn 0.4s ease-out', pointerEvents: 'none', textAlign: 'center', padding: '0 4vw',
+        }}>
+          {game.loser === null ? (
+            <>
+              <SNLabel color={SN_GOLD} size={snPx(13)} style={{ letterSpacing: '0.5em' }}>STALEMATE</SNLabel>
+              <div style={{
+                fontFamily: SN_SERIF, fontSize: snPx(110), fontWeight: 300, fontStyle: 'italic',
+                letterSpacing: '-0.04em', lineHeight: 1, marginTop: snPx(8), color: SN_INK,
+              }}>
+                A <span style={{ color: SN_GOLD }}>draw</span>.
+              </div>
+              <SNLabel color={SN_DIM} size={snPx(11)} style={{ marginTop: snPx(28) }}>NO RESOURCES EXCHANGED</SNLabel>
+            </>
+          ) : (
+            <>
+              <SNLabel color={SN_GOLD} size={snPx(13)} style={{ letterSpacing: '0.5em' }}>SETTLEMENT</SNLabel>
+              <div style={{
+                fontFamily: SN_SERIF, fontSize: snPx(92), fontWeight: 300, fontStyle: 'italic',
+                letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: snPx(12), color: SN_INK,
+                whiteSpace: 'nowrap',
+              }}>
+                {game.stake} <span style={{ color: SN_GOLD }}>{R.label}</span>
+              </div>
+              <div style={{
+                fontFamily: SN_SERIF, fontSize: snPx(30), fontStyle: 'italic',
+                color: SN_DIM, marginTop: snPx(14),
+              }}>
+                {game.loser === 'attacker' ? D.name : A.name} <span style={{ color: SN_GOLD, fontStyle: 'normal' }}>←</span>{' '}
+                {game.loser === 'attacker' ? A.name : D.name}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  )
+
   return (
+    <SNStage overlay={phaseOverlay}>
     <div ref={rootRef} style={{
-      width: W, height: H, background: SN_BG, color: SN_INK,
+      width: W, height: H, color: SN_INK,
       fontFamily: SN_SANS, position: 'relative', overflow: 'hidden',
     }}>
-      <SNStarfield density={1.0}/>
-      <SNBackdrop tintLeft={SN_RED} tintRight={SN_BLUE} opacity={0.18}/>
-
       <SNMasthead
         left="NEBULA ALLIANCE · CH. II"
         center={
@@ -999,71 +1087,8 @@ export function EscalationSentinelFacilitator({
         <span>SYNC OK</span>
       </div>
 
-      {game.phase === 'hit' && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${SN_RED}33, transparent 70%), rgba(5,3,8,0.65)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
-          animation: 'snFadeIn 0.4s ease-out',
-          pointerEvents: 'none',
-        }}>
-          <SNLabel color={SN_RED} size={11} style={{ letterSpacing: '0.5em' }}>DIRECT HIT</SNLabel>
-          <div style={{
-            fontFamily: SN_SERIF, fontSize: 140, fontWeight: 300, fontStyle: 'italic',
-            letterSpacing: '-0.04em', lineHeight: 1, marginTop: 8,
-            color: SN_INK, textShadow: `0 0 40px ${SN_RED}88`, whiteSpace: 'nowrap',
-          }}>
-            {game.loser === 'attacker'
-              ? <>{A.name.charAt(0) + A.name.slice(1).toLowerCase()}<span style={{ color: SN_RED }}> falls.</span></>
-              : <>{D.name.charAt(0) + D.name.slice(1).toLowerCase()}<span style={{ color: SN_RED }}> falls.</span></>}
-          </div>
-          <SNLabel color={SN_DIM} style={{ marginTop: 28 }}>
-            {game.loser === 'attacker' ? `${A.name} FAILED TO RESPOND` : `${D.name} FAILED TO RESPOND`}
-          </SNLabel>
-        </div>
-      )}
-
-      {game.phase === 'resolution' && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${SN_GOLD}1a, transparent 70%), rgba(5,3,8,0.7)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
-          animation: 'snFadeIn 0.4s ease-out',
-          pointerEvents: 'none',
-        }}>
-          {game.loser === null ? (
-            <>
-              <SNLabel color={SN_GOLD} size={11} style={{ letterSpacing: '0.5em' }}>STALEMATE</SNLabel>
-              <div style={{
-                fontFamily: SN_SERIF, fontSize: 110, fontWeight: 300, fontStyle: 'italic',
-                letterSpacing: '-0.04em', lineHeight: 1, marginTop: 8, color: SN_INK,
-              }}>
-                A <span style={{ color: SN_GOLD }}>draw</span>.
-              </div>
-              <SNLabel color={SN_DIM} style={{ marginTop: 28 }}>NO RESOURCES EXCHANGED</SNLabel>
-            </>
-          ) : (
-            <>
-              <SNLabel color={SN_GOLD} size={11} style={{ letterSpacing: '0.5em' }}>SETTLEMENT</SNLabel>
-              <div style={{
-                fontFamily: SN_SERIF, fontSize: 92, fontWeight: 300, fontStyle: 'italic',
-                letterSpacing: '-0.03em', lineHeight: 1.05, marginTop: 12, color: SN_INK,
-                whiteSpace: 'nowrap',
-              }}>
-                {game.stake} <span style={{ color: SN_GOLD }}>{R.label}</span>
-              </div>
-              <div style={{
-                fontFamily: SN_SERIF, fontSize: 30, fontStyle: 'italic',
-                color: SN_DIM, marginTop: 14,
-              }}>
-                {game.loser === 'attacker' ? D.name : A.name} <span style={{ color: SN_GOLD, fontStyle: 'normal' }}>←</span>{' '}
-                {game.loser === 'attacker' ? A.name : D.name}
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </div>
+    </SNStage>
   )
 }
 
@@ -1096,13 +1121,11 @@ export function EscalationSentinelAlliance({
   const W = 1440, H = 900
 
   return (
+    <SNStage>
     <div style={{
-      width: W, height: H, background: SN_BG, color: SN_INK,
+      width: W, height: H, color: SN_INK,
       fontFamily: SN_SANS, position: 'relative', overflow: 'hidden',
     }}>
-      <SNStarfield density={1.0}/>
-      <SNBackdrop tintLeft={SN_RED} tintRight={SN_BLUE} opacity={0.16}/>
-
       <SNMasthead
         left="NEBULA ALLIANCE · CH. II"
         center="● ALLIANCE WINDOW · CHOOSE A SIDE"
@@ -1190,6 +1213,7 @@ export function EscalationSentinelAlliance({
         </div>
       </div>
     </div>
+    </SNStage>
   )
 }
 

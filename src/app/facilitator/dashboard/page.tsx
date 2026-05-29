@@ -5,7 +5,6 @@ import QRCode from 'qrcode'
 import {
   EscalationSentinelFacilitator,
   EscalationSentinelAlliance,
-  SentinelFitToViewport,
   SN_GAME,
   applySNEvent,
 } from '@/components/escalation/EscalationSentinel'
@@ -332,6 +331,20 @@ export default function FacilitatorDashboard() {
   const advancingBeatRef = useRef(false)
   const clockOffsetRef = useRef(0) // serverTime - clientTime in ms
 
+  // Responsive projector scaling. The dashboard reflows (grid/flex), so a single
+  // viewport-driven `zoom` fluidly scales every px (type, gaps, padding) at once.
+  // We contain-scale a 1920×1080 baseline: exactly 1.35 at 1080p (our tuned
+  // projector size), larger on 1440p/4K so it fills, smaller on small or non-16:9
+  // screens so it never clips. Uniform scale → no distortion.
+  const [zoom, setZoom] = useState(1.35)
+  useEffect(() => {
+    const update = () => setZoom(Math.min(window.innerWidth / 1422, window.innerHeight / 800))
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', update)
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('orientationchange', update) }
+  }, [])
+
   const loadPromiseChecks = useCallback(async (sessionId: string, year: number) => {
     const res = await fetch(`/api/promises?sessionId=${sessionId}&year=${year}`)
     if (res.ok) setPromiseChecks(await res.json())
@@ -608,32 +621,27 @@ export default function FacilitatorDashboard() {
 
   const isPactCheck = session.phase === 'PROMISE_CHECK'
 
-  // Scale factor for TV projection — increase to make everything bigger
-  const ZOOM = 1.35
-
   return (
-    <div style={{ position:'fixed', inset:0, background:B_BG, overflow:'hidden', zoom:ZOOM }}>
+    <div style={{ position:'fixed', inset:0, background:B_BG, overflow:'hidden', zoom }}>
 
       {/* ── Escalation Sentinel overlay ── */}
       {tvScandal && tvScandal.beat !== 'CLOSED' && (
-        <SentinelFitToViewport>
-          {tvScandal.beat === 'ALLIANCE_WINDOW' ? (
-            <EscalationSentinelAlliance
-              attackerId={nameToSnId(tvScandal.attacker?.name)}
-              defenderId={nameToSnId(tvScandal.defender?.name)}
-              resource={dbResourceToSn(tvScandal.resource)}
-              amount={tvScandal.amount}
-            />
-          ) : (
-            <EscalationSentinelFacilitator
-              attackerId={nameToSnId(tvScandal.attacker?.name)}
-              defenderId={nameToSnId(tvScandal.defender?.name)}
-              resource={dbResourceToSn(tvScandal.resource)}
-              amount={tvScandal.amount}
-              sessionId={session.id}
-            />
-          )}
-        </SentinelFitToViewport>
+        tvScandal.beat === 'ALLIANCE_WINDOW' ? (
+          <EscalationSentinelAlliance
+            attackerId={nameToSnId(tvScandal.attacker?.name)}
+            defenderId={nameToSnId(tvScandal.defender?.name)}
+            resource={dbResourceToSn(tvScandal.resource)}
+            amount={tvScandal.amount}
+          />
+        ) : (
+          <EscalationSentinelFacilitator
+            attackerId={nameToSnId(tvScandal.attacker?.name)}
+            defenderId={nameToSnId(tvScandal.defender?.name)}
+            resource={dbResourceToSn(tvScandal.resource)}
+            amount={tvScandal.amount}
+            sessionId={session.id}
+          />
+        )
       )}
 
       {/* ── Raid alert banner ── */}
