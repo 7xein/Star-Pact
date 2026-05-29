@@ -2,9 +2,61 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import QRCode from 'qrcode'
-import FacilitatorTV from '@/components/scandal/FacilitatorTV'
-import type { ScandalFull } from '@/components/scandal/ScandalOverlay'
+import {
+  EscalationSentinelFacilitator,
+  EscalationSentinelAlliance,
+  SentinelFitToViewport,
+  SN_GAME,
+  applySNEvent,
+} from '@/components/escalation/EscalationSentinel'
 import PlanetOrb from '@/components/PlanetOrb'
+
+// Internal interface — replaces the deleted ScandalFull import. Keeps the
+// dashboard's event-handler typing intact while we phase out the old scandal
+// data shape; only fields actually read by this file are required.
+interface ScandalFull {
+  id: string
+  attacker?: { id: string; name: string; color: string }
+  defender?: { id: string; name: string; color: string }
+  attackerId: string
+  defenderId: string
+  resource: string
+  amount: number
+  status: string
+  beat?: string
+  beatEndsAt?: string | null
+  currentRound?: number
+  hitSide?: string | null
+  alliances?: Array<{ countryId: string; side: string; country?: { name: string; color: string } }>
+  volleys?: Array<{ countryId: string; round: number; side: string }>
+  sessionId?: string
+}
+
+// Map planet name → lowercase id used by EscalationSentinel
+function nameToSnId(name: string | undefined): string {
+  if (!name) return 'ignis'
+  const n = name.toLowerCase()
+  if (n.startsWith('ignis'))    return 'ignis'
+  if (n.startsWith('solara'))   return 'solara'
+  if (n.startsWith('glacius'))  return 'glacius'
+  if (n.startsWith('rosara'))   return 'rosara'
+  if (n.startsWith('verdania')) return 'verdania'
+  if (n.startsWith('lumenor'))  return 'lumenor'
+  if (n.startsWith('dustara'))  return 'dustara'
+  if (n.startsWith('aqualis'))  return 'aqualis'
+  if (n.startsWith('voidara'))  return 'voidara'
+  if (n.startsWith('ferron'))   return 'ferron'
+  return 'ignis'
+}
+
+// Map the DB resource id (food/wealth/environment/kushBalls) → Sentinel id
+function dbResourceToSn(r: string): string {
+  if (r === 'food') return 'energy'
+  if (r === 'wealth') return 'crew'
+  if (r === 'environment') return 'oxygen'
+  if (r === 'kushBalls') return 'rockets'
+  return r
+}
 
 // ── Design tokens (from README) ───────────────────────────────
 const B_BG    = '#0b0a14'
@@ -185,7 +237,7 @@ function EditorialConstellation({ planets, reclaimed, audit, caption }: {
               transition: 'filter 0.6s ease, opacity 0.6s ease',
               filter: lit ? 'none' : 'saturate(0.18) brightness(0.55)',
               opacity: lit ? 1 : 0.6, willChange:'transform' }}>
-            <PlanetOrb name={p.name} color={p.color} size={layout.size} glow={lit} lit={lit}/>
+            <PlanetOrb name={p.name} color={p.color} size={layout.size} lit={lit}/>
             {audit && lit && (
               <div style={{ position:'absolute', top:-2, right:-2, width:4, height:4,
                 borderRadius:'50%', background:B_GOLD, boxShadow:`0 0 6px ${B_GOLD}` }}/>
@@ -219,6 +271,7 @@ interface Country {
   id: string; name: string; color: string
   food: number; wealth: number; environment: number; kushBalls: number
   promisesData?: string
+  claimedBy?: string | null
 }
 interface PromiseCheck {
   id: string; countryId: string; year: number; resource: string
@@ -271,6 +324,8 @@ export default function FacilitatorDashboard() {
   const [recentTrades, setRecentTrades]   = useState<TradeEntry[]>([])
   const [qrUrl, setQrUrl]                 = useState('')
   const [qrOpen, setQrOpen]               = useState(false)
+  const [kickOpen, setKickOpen]           = useState(false)
+  const [kickingId, setKickingId]         = useState<string | null>(null)
 
   const sessionIdRef    = useRef<string | null>(null)
   const raidAlertTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -353,6 +408,10 @@ export default function FacilitatorDashboard() {
           return prev
         })
         setRaidResolving(null)
+      }
+      // Sentinel real-time sync — server-authoritative state broadcasts.
+      if (data.type === 'SN_STATE' || data.type === 'SN_FIRE' || data.type === 'SN_RESET') {
+        applySNEvent(data)
       }
       // Trade events — add to recent trades feed
       if (data.type === 'TRADE_ACCEPTED' && data.trade) {
@@ -469,12 +528,36 @@ export default function FacilitatorDashboard() {
     await fetch('/api/session/phase', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId: id, action, ...extra }) })
   }
 
-  const resolveScandal = async (scandalId: string) => {
-    setRaidResolving(scandalId)
-    setTimeout(async () => {
-      await fetch('/api/scandal/resolve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scandalId }) })
-    }, 3000)
-  }
+  // Wire SN_GAME's resolution → backing /api/scandal/resolve. Subscribes to
+  // the Sentinel state machine; when it transitions into 'resolution' for the
+  // currently-displayed scandal, fires the API once with the canonical outcome
+  // ('ATTACKER_WINS' | 'DEFENDER_WINS' | 'DRAW') derived from game.loser.
+  const resolvedByGameRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const dispatchResolution = (scandalId: string, loser: 'attacker' | 'defender' | null) => {
+      if (resolvedByGameRef.current.has(scandalId)) return
+      resolvedByGameRef.current.add(scandalId)
+      const outcome = loser === 'attacker' ? 'DEFENDER_WINS'
+                   : loser === 'defender' ? 'ATTACKER_WINS'
+                   : 'DRAW'
+      fetch('/api/scandal/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scandalId, outcome }),
+      }).catch(() => { /* let the polling retry pick up state */ })
+    }
+    const unsub = SN_GAME.subscribe((s) => {
+      if (s.phase === 'resolution' && tvScandal?.id) {
+        dispatchResolution(tvScandal.id, s.loser)
+      }
+    })
+    return () => { unsub() }
+  }, [tvScandal?.id])
+
+  // When a scandal closes / clears, allow the next one to fire its resolution.
+  useEffect(() => {
+    if (!tvScandal) resolvedByGameRef.current.clear()
+  }, [tvScandal])
 
   // ── Derived values ────────────────────────────────────────
   const phaseIdx = session ? (DB_PHASE_TO_IDX[session.phase] ?? 0) : 0
@@ -531,9 +614,26 @@ export default function FacilitatorDashboard() {
   return (
     <div style={{ position:'fixed', inset:0, background:B_BG, overflow:'hidden', zoom:ZOOM }}>
 
-      {/* ── Theater of Voids overlay ── */}
+      {/* ── Escalation Sentinel overlay ── */}
       {tvScandal && tvScandal.beat !== 'CLOSED' && (
-        <FacilitatorTV scandal={tvScandal} session={session} clockOffset={clockOffsetRef.current}/>
+        <SentinelFitToViewport>
+          {tvScandal.beat === 'ALLIANCE_WINDOW' ? (
+            <EscalationSentinelAlliance
+              attackerId={nameToSnId(tvScandal.attacker?.name)}
+              defenderId={nameToSnId(tvScandal.defender?.name)}
+              resource={dbResourceToSn(tvScandal.resource)}
+              amount={tvScandal.amount}
+            />
+          ) : (
+            <EscalationSentinelFacilitator
+              attackerId={nameToSnId(tvScandal.attacker?.name)}
+              defenderId={nameToSnId(tvScandal.defender?.name)}
+              resource={dbResourceToSn(tvScandal.resource)}
+              amount={tvScandal.amount}
+              sessionId={session.id}
+            />
+          )}
+        </SentinelFitToViewport>
       )}
 
       {/* ── Raid alert banner ── */}
@@ -573,9 +673,7 @@ export default function FacilitatorDashboard() {
             <div key={s.id} style={{ background:'rgba(22,10,10,0.95)', border:'1px solid rgba(255,59,59,0.4)', padding:'12px 16px', backdropFilter:'blur(8px)' }}>
               <p style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:'#ff3b3b', marginBottom:6 }}>◤ ACTIVE ESCALATION</p>
               <p style={{ fontFamily:B_SERIF, fontSize:16, fontWeight:400 }}>{s.attacker?.name} <span style={{ color:B_FAINT }}>vs</span> {s.defender?.name}</p>
-              <button onClick={() => resolveScandal(s.id)} style={{ marginTop:8, fontFamily:B_SANS, fontSize:11, letterSpacing:'0.08em', padding:'6px 14px', border:'1px solid rgba(255,59,59,0.5)', background:'transparent', color:'#ff3b3b', cursor:'pointer' }}>
-                RESOLVE
-              </button>
+              <p style={{ marginTop:6, fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:B_FAINT }}>RESOLVES AUTOMATICALLY</p>
             </div>
           ))}
         </div>
@@ -652,7 +750,7 @@ export default function FacilitatorDashboard() {
                   planets={constellationPlanets}
                   reclaimed={reclaimed}
                   audit={isPactCheck}
-                  caption={isPactCheck ? `◈ PACTS KEPT · ${reclaimed.size}/10` : null}
+                  caption={isPactCheck ? `◈ TARGETS MET · ${reclaimed.size}/10` : null}
                 />
               </div>
 
@@ -712,7 +810,7 @@ export default function FacilitatorDashboard() {
               <>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
                   <div>
-                    <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>PACTS · BY CHAPTER V</div>
+                    <div style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.3em', color:B_FAINT, textTransform:'uppercase', fontWeight:500 }}>TARGETS · BY CHAPTER V</div>
                     <div style={{ fontFamily:B_SERIF, fontSize:22, fontWeight:300, letterSpacing:'-0.02em', fontStyle:'italic', marginTop:2 }}>The ledger.</div>
                   </div>
                   <div style={{ fontFamily:B_MONO, fontSize:11, letterSpacing:'0.2em', color:B_GOLD, paddingBottom:4 }}>
@@ -812,7 +910,11 @@ export default function FacilitatorDashboard() {
             style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'8px 18px', cursor:'pointer', transition:'border-color 0.2s, color 0.2s' }}>
             ↺ RESET SESSION
           </button>
-          <button onClick={() => setQrOpen(o => !o)}
+          <button onClick={() => { setKickOpen(o => !o); setQrOpen(false) }}
+            style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'8px 18px', cursor:'pointer', transition:'border-color 0.2s, color 0.2s' }}>
+            {kickOpen ? 'HIDE KICK' : '✕ KICK PLAYER ▾'}
+          </button>
+          <button onClick={() => { setQrOpen(o => !o); setKickOpen(false) }}
             style={{ fontFamily:B_MONO, fontSize:10, letterSpacing:'0.2em', color:B_FAINT, background:'transparent', border:`1px solid ${B_LINE}`, padding:'8px 18px', cursor:'pointer', transition:'border-color 0.2s, color 0.2s' }}>
             {qrOpen ? 'HIDE QR' : 'SCAN TO JOIN ▾'}
           </button>
@@ -827,6 +929,72 @@ export default function FacilitatorDashboard() {
             <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_GOLD, textAlign:'center', marginTop:10 }}>
               {typeof window !== 'undefined' ? `${window.location.origin}/join` : ''}
             </div>
+          </div>
+        )}
+
+        {/* Kick player popup — clears claimedBy only; planet resources/promises preserved */}
+        {kickOpen && (
+          <div style={{
+            position:'absolute', bottom:42, right:170,
+            background:'#07021a', border:`1px solid ${B_LINE}`, padding:14,
+            boxShadow:'0 0 40px rgba(232,200,122,0.12)', zIndex:30,
+            width: 280, maxHeight: 360, overflowY:'auto',
+          }}>
+            <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.3em', color:B_GOLD, marginBottom:10 }}>
+              KICK A PLAYER · KEEPS PROGRESS
+            </div>
+            {(() => {
+              const claimed = session.countries.filter(c => !!c.claimedBy)
+              if (claimed.length === 0) return (
+                <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.25em', color:B_FAINT, padding:'12px 0', textAlign:'center' }}>
+                  NO PLAYERS TO KICK
+                </div>
+              )
+              return claimed.map(c => (
+                <button
+                  key={c.id}
+                  disabled={kickingId === c.id}
+                  onClick={async () => {
+                    if (!confirm(`Kick ${c.claimedBy} from ${c.name}? Their planet's resources and progress will be kept — a new player can claim it.`)) return
+                    setKickingId(c.id)
+                    try {
+                      const res = await fetch('/api/kick', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: session.id, countryId: c.id }),
+                      })
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({}))
+                        alert(err.error || 'Failed to kick')
+                      }
+                    } finally { setKickingId(null) }
+                  }}
+                  style={{
+                    width:'100%', display:'flex', alignItems:'center', gap:10,
+                    padding:'8px 10px', marginBottom:4,
+                    background:'transparent', border:`1px solid ${B_LINE}`,
+                    cursor: kickingId === c.id ? 'wait' : 'pointer',
+                    opacity: kickingId === c.id ? 0.5 : 1,
+                    textAlign:'left',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${c.color}14` }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <PlanetOrb name={c.name} color={c.color} size={28}/>
+                  <div style={{ minWidth:0, flex:1 }}>
+                    <div style={{ fontFamily:B_SERIF, fontSize:14, color:B_INK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {c.claimedBy}
+                    </div>
+                    <div style={{ fontFamily:B_MONO, fontSize:8, letterSpacing:'0.2em', color:B_FAINT, marginTop:1 }}>
+                      {c.name.toUpperCase()}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily:B_MONO, fontSize:9, letterSpacing:'0.2em', color:'#d28a8a' }}>
+                    {kickingId === c.id ? '…' : '✕ KICK'}
+                  </div>
+                </button>
+              ))
+            })()}
           </div>
         )}
       </div>

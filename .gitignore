@@ -49,4 +49,7 @@ dev.db-journal
 # brainstorming sessions
 .superpowers/
 
+# claude code
+.claude/
+
 .vercel

@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto'
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const { scandalId } = body
+  const { scandalId, outcome: providedOutcome } = body as { scandalId: string; outcome?: 'ATTACKER_WINS' | 'DEFENDER_WINS' | 'DRAW' }
 
   const scandal = await prisma.scandal.findUnique({
     where: { id: scandalId },
@@ -14,11 +14,28 @@ export async function POST(req: Request) {
   if (!scandal) return NextResponse.json({ error: 'Scandal not found' }, { status: 404 })
   if (scandal.status !== 'OPEN') return NextResponse.json({ error: 'Already resolved' }, { status: 400 })
 
-  // Server-side crypto random 50/50
-  const randomByte = randomBytes(1)[0]
-  const attackerWins = randomByte < 128
+  // Outcome can be provided by the Sentinel game state (preferred); fall back
+  // to server-side crypto-random 50/50 if not supplied.
+  let outcome: 'ATTACKER_WINS' | 'DEFENDER_WINS' | 'DRAW'
+  if (providedOutcome === 'ATTACKER_WINS' || providedOutcome === 'DEFENDER_WINS' || providedOutcome === 'DRAW') {
+    outcome = providedOutcome
+  } else {
+    const randomByte = randomBytes(1)[0]
+    outcome = randomByte < 128 ? 'ATTACKER_WINS' : 'DEFENDER_WINS'
+  }
 
-  const outcome = attackerWins ? 'ATTACKER_WINS' : 'DEFENDER_WINS'
+  // DRAW: no resource transfer, just close the scandal.
+  if (outcome === 'DRAW') {
+    await prisma.scandal.update({ where: { id: scandalId }, data: { status: 'RESOLVED', outcome } })
+    const updatedSession = await prisma.session.findUnique({
+      where: { id: scandal.sessionId },
+      include: { countries: true }
+    })
+    broadcastUpdate(scandal.sessionId, { type: 'SCANDAL_RESOLVED', scandalId, outcome, session: updatedSession })
+    return NextResponse.json({ outcome })
+  }
+
+  const attackerWins = outcome === 'ATTACKER_WINS'
 
   const winnerSide = attackerWins ? 'ATTACKER' : 'DEFENDER'
   const loserSide = attackerWins ? 'DEFENDER' : 'ATTACKER'

@@ -2,7 +2,53 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import PlanetOrb from '@/components/PlanetOrb'
-import ScandalOverlay, { type ScandalFull } from '@/components/scandal/ScandalOverlay'
+import StarField from '@/components/StarField'
+import { EscalationSentinelMobileFire, applySNEvent } from '@/components/escalation/EscalationSentinel'
+
+// Internal interface — replaces the deleted ScandalFull import (was previously
+// re-exported by ScandalOverlay). Only the fields this file actually reads
+// remain.
+interface ScandalFull {
+  id: string
+  attackerId: string
+  defenderId: string
+  resource: string
+  amount: number
+  status: string
+  beat?: string
+  beatEndsAt?: string | null
+  currentRound?: number
+  hitSide?: string | null
+  attacker?: { id: string; name: string; color: string }
+  defender?: { id: string; name: string; color: string }
+  alliances?: Array<{ countryId: string; side: string; country?: { name: string; color: string } }>
+  volleys?: Array<{ countryId: string; round: number; side: string }>
+  sessionId?: string
+}
+
+// Map planet name → lowercase id used by EscalationSentinel
+function nameToSnId(name: string | undefined): string {
+  if (!name) return 'ignis'
+  const n = name.toLowerCase()
+  if (n.startsWith('ignis'))    return 'ignis'
+  if (n.startsWith('solara'))   return 'solara'
+  if (n.startsWith('glacius'))  return 'glacius'
+  if (n.startsWith('rosara'))   return 'rosara'
+  if (n.startsWith('verdania')) return 'verdania'
+  if (n.startsWith('lumenor'))  return 'lumenor'
+  if (n.startsWith('dustara'))  return 'dustara'
+  if (n.startsWith('aqualis'))  return 'aqualis'
+  if (n.startsWith('voidara'))  return 'voidara'
+  if (n.startsWith('ferron'))   return 'ferron'
+  return 'ignis'
+}
+function dbResourceToSn(r: string): string {
+  if (r === 'food') return 'energy'
+  if (r === 'wealth') return 'crew'
+  if (r === 'environment') return 'oxygen'
+  if (r === 'kushBalls') return 'rockets'
+  return r
+}
 
 interface Country {
   id: string
@@ -61,11 +107,14 @@ interface Scandal {
 }
 
 const RESOURCES = ['food', 'wealth', 'environment', 'kushBalls'] as const
-const RES_LABELS: Record<string, string> = { food: 'Energy', wealth: 'Crew', environment: 'Oxygen', kushBalls: 'Operatives' }
+const RES_LABELS: Record<string, string> = { food: 'Energy', wealth: 'Crew', environment: 'Oxygen', kushBalls: 'Rockets' }
 const RES_ICONS: Record<string, string>  = { food: '⚡', wealth: '◉', environment: '○', kushBalls: '◈' }
 
-// Editorial design tokens
-const B_GOLD  = '#e8c87a'
+// Editorial design tokens (mobile_handoff_v2: pure-black surface, blue top-glow,
+// gold as the only brand accent)
+const B_BG    = '#000'                              // rule 1 — pure black, every surface
+const B_GLOW  = '#5b9eff33'                         // rule 3 — fixed blue top-glow @ ~20% alpha
+const B_GOLD  = '#e8c87a'                           // rule 4 — single brand accent
 const B_INK   = '#f4efe5'
 const B_DIM   = 'rgba(244,239,229,0.78)'
 const B_FAINT = 'rgba(244,239,229,0.55)'
@@ -265,6 +314,14 @@ export default function PlayPage() {
     const es = new EventSource(`/api/sse?sessionId=${sid}`)
     es.onmessage = (e) => {
       const data = JSON.parse(e.data)
+      if (data.type === 'PLAYER_KICKED' && data.countryId === cid) {
+        // Facilitator removed this player from their planet. Clear cookies and
+        // bounce back to the join screen so they can rejoin or pick a new one.
+        document.cookie = 'countryId=; path=/; max-age=0'
+        document.cookie = 'sessionId=; path=/; max-age=0'
+        window.location.href = '/join'
+        return
+      }
       if (data.type === 'SESSION_UPDATE' || data.type === 'SESSION_CREATED') {
         setSession(data.session)
         const me = data.session.countries.find((c: Country) => c.id === cid)
@@ -326,6 +383,12 @@ export default function PlayPage() {
         }
         const outcome = data.outcome === 'ATTACKER_WINS' ? 'Attacker wins.' : 'Defender holds.'
         showNotif(`Escalation resolved — ${outcome}`)
+      }
+      // Sentinel real-time sync — server-authoritative state broadcasts.
+      // SN_STATE carries the full canonical state (KV-backed); applySNEvent
+      // replaces the local SN_GAME cache, advancing only if version >= local.
+      if (data.type === 'SN_STATE' || data.type === 'SN_FIRE' || data.type === 'SN_RESET') {
+        applySNEvent(data)
       }
     }
 
@@ -531,7 +594,7 @@ export default function PlayPage() {
   if (!session || !myCountry) return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#0b0a14',
+      background: B_BG,
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 48, height: 48, margin: '0 auto 16px', opacity: 0.6 }}>
@@ -567,7 +630,7 @@ export default function PlayPage() {
   const TABS: { id: TabId; label: string }[] = [
     { id: 'identity',  label: 'Identity'  },
     { id: 'resources', label: 'Resources' },
-    { id: 'pacts',     label: 'Pacts'     },
+    { id: 'pacts',     label: 'Targets'   },
     { id: 'allies',    label: 'Allies'    },
   ]
 
@@ -579,12 +642,22 @@ export default function PlayPage() {
       margin: '0 auto',
       display: 'flex',
       flexDirection: 'column',
-      background: '#0b0a14',
+      background: B_BG,
       fontFamily: B_SANS,
       color: B_INK,
       position: 'relative',
       overflow: 'hidden',
     }}>
+
+      {/* (rule 2) Stars — first child of mobile root */}
+      <StarField density={1.0} />
+
+      {/* (rule 3) Fixed blue top-glow — same on every tab, NEVER per-planet */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: `radial-gradient(ellipse at 50% 0%, ${B_GLOW}, transparent 55%)`,
+        pointerEvents: 'none',
+      }}/>
 
       {/* ── Notification ── */}
       {notification && (
@@ -608,6 +681,7 @@ export default function PlayPage() {
 
       {/* ── Header ── */}
       <div style={{
+        position: 'relative',
         padding: '14px 18px 12px',
         borderBottom: `1px solid ${B_LINE}`,
         display: 'grid',
@@ -629,6 +703,7 @@ export default function PlayPage() {
       {/* ── Incoming Trades ── */}
       {pendingTrades.map(t => (
         <div key={t.id} style={{
+          position: 'relative',
           margin: '8px 16px 0',
           padding: '12px 14px',
           border: `1px solid ${B_GOLD}44`,
@@ -648,6 +723,7 @@ export default function PlayPage() {
       {/* ── Escalation Alliance Requests ── */}
       {openRaids.map(s => (
         <div key={s.id} style={{
+          position: 'relative',
           margin: '8px 16px 0',
           padding: '12px 14px',
           border: '1px solid rgba(255,59,59,0.4)',
@@ -665,13 +741,14 @@ export default function PlayPage() {
       ))}
 
       {/* ── Tab Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 0', paddingBottom: '144px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+      <div style={{ position: 'relative', flex: 1, overflowY: 'auto', padding: '20px 20px 0', paddingBottom: '144px', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
 
         {/* ── IDENTITY ── */}
         {session.phase !== 'DEBRIEF' && tab === 'identity' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-            <div style={{ marginBottom: 20 }}>
-              <PlanetOrb name={myCountry.name} color={myColor} size={150} glow pulse />
+            {/* Match mobile_handoff_v2 BPassport: flex centering, no pulse */}
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '18px 0' }}>
+              <PlanetOrb name={myCountry.name} size={150} />
             </div>
 
             <div style={{ fontFamily: B_SERIF, fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 0.95, textAlign: 'center', marginBottom: 10 }}>
@@ -713,15 +790,15 @@ export default function PlayPage() {
                   animation: flash === 'up' ? 'flash-green 0.8s ease-out' : flash === 'down' ? 'flash-red-bg 0.8s ease-out' : 'none',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                    <Label>{RES_ICONS[r]} {RES_LABELS[r]}</Label>
+                    <Label color={B_GOLD} style={{ fontSize: 16 }}>{RES_ICONS[r]} {RES_LABELS[r]}</Label>
                     <div style={{
-                      fontFamily: B_SERIF, fontSize: 50, fontWeight: 700,
-                      lineHeight: 1, color: B_INK, letterSpacing: '-0.03em',
+                      fontFamily: B_SERIF, fontSize: 34, fontWeight: 700,
+                      lineHeight: 1, color: B_GOLD, letterSpacing: '-0.03em',
                     }}>
                       {val}
                     </div>
                   </div>
-                  <ResBar value={val} max={20} color={myColor} />
+                  <ResBar value={val} max={20} color={B_GOLD} />
                   {r !== 'kushBalls' && <div style={{ height: 1, background: B_LINE, marginTop: 20 }} />}
                 </div>
               )
@@ -735,7 +812,7 @@ export default function PlayPage() {
           <div style={{ width: '100%' }}>
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontFamily: B_SERIF, fontSize: 22, fontWeight: 600, color: B_INK, marginBottom: 4 }}>
-                The pacts<span style={{ color: B_GOLD }}>.</span>
+                The targets<span style={{ color: B_GOLD }}>.</span>
               </div>
               <div style={{ fontFamily: B_MONO, fontSize: 9, letterSpacing: '0.3em', color: B_FAINT }}>
                 COMMITMENTS TO THE FEDERATION
@@ -753,7 +830,7 @@ export default function PlayPage() {
                 <div key={i} style={{ marginBottom: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontFamily: B_SERIF, fontSize: 18, fontWeight: 600, color: B_INK }}>
+                      <div style={{ fontFamily: B_SERIF, fontSize: 16, fontWeight: 600, color: B_INK }}>
                         {RES_LABELS[p.resource]}
                         <span style={{ color: B_GOLD }}> → {p.target}</span>
                       </div>
@@ -766,7 +843,7 @@ export default function PlayPage() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Label color={B_FAINT}>Current</Label>
-                    <span style={{ fontFamily: B_MONO, fontSize: 13, letterSpacing: '0.1em', color: barColor, fontWeight: 500 }}>
+                    <span style={{ fontFamily: B_MONO, fontSize: 11, letterSpacing: '0.1em', color: barColor, fontWeight: 500 }}>
                       {current} / {p.target}
                     </span>
                   </div>
@@ -788,9 +865,9 @@ export default function PlayPage() {
               const names = relations[key] as string[]
               return (
                 <div key={key} style={{ marginBottom: 24 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <div style={{ width: 20, height: 1, background: color }} />
-                    <Label color={color}>{label}</Label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <div style={{ width: 24, height: 1, background: color }} />
+                    <Label color={color} style={{ fontSize: 17, letterSpacing: '0.16em' }}>{label}</Label>
                   </div>
                   {names.length === 0 ? (
                     <Label color={B_FAINT}>None</Label>
@@ -801,12 +878,11 @@ export default function PlayPage() {
                         return (
                           <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             {planet && (
-                              <PlanetOrb name={planet.name} color={planet.color} size={28} glow={false} />
+                              <PlanetOrb name={planet.name} color={planet.color} size={28} />
                             )}
                             <div style={{
                               fontFamily: B_SERIF, fontSize: 15, fontWeight: 500,
                               color: key === 'writeOff' ? B_DIM : B_INK,
-                              textDecoration: key === 'writeOff' ? 'line-through' : 'none',
                             }}>
                               {name}
                             </div>
@@ -894,7 +970,7 @@ export default function PlayPage() {
         position: 'absolute', bottom: 64, left: 0, right: 0,
         padding: '10px 16px', display: 'flex', gap: 8,
         borderTop: `1px solid ${B_LINE}`,
-        background: `rgba(11,10,20,0.92)`, backdropFilter: 'blur(8px)',
+        background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
       }}>
         {session.phase === 'TRADING' && (
           <button onClick={() => { setTradeError(null); setShowTradeModal(true) }} style={{
@@ -933,7 +1009,7 @@ export default function PlayPage() {
         position: 'absolute', bottom: 0, left: 0, right: 0, height: 64,
         display: 'grid', gridTemplateColumns: 'repeat(4,1fr)',
         borderTop: `1px solid ${B_LINE}`,
-        background: '#0b0a14',
+        background: B_BG,
       }}>
         {TABS.map(({ id, label }) => {
           const active = tab === id
@@ -1035,30 +1111,58 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* ── Theater of Voids Overlay ── */}
+      {/* ── Escalation Sentinel — full-screen mobile fire UI ── */}
       {activeScandal && activeScandal.beat !== 'CLOSED' && (
-        <ScandalOverlay
-          scandal={activeScandal}
-          myCountry={myCountry}
-          session={session}
-          onFire={fireRocket}
-          onJoinAlliance={joinAllianceForScandal}
-          onDismiss={() => setActiveScandal(null)}
-          clockOffset={clockOffsetRef.current}
-        />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#050308' }}>
+          <EscalationSentinelMobileFire
+            myPlanetId={nameToSnId(myCountry.name)}
+            attackerId={nameToSnId(activeScandal.attacker?.name)}
+            defenderId={nameToSnId(activeScandal.defender?.name)}
+            resource={dbResourceToSn(activeScandal.resource)}
+            amount={activeScandal.amount}
+            sessionId={session.id}
+          />
+        </div>
       )}
 
       {/* ── Target Warning Popup ── */}
       {showTargetWarning && (
         <div className="sp-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setShowTargetWarning(false) }}>
-          <div className="sp-modal" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
-            <div style={{ fontFamily: B_SERIF, fontSize: 24, fontWeight: 700, color: '#ff3b3b', marginBottom: 8 }}>
-              Target not met!
+          <div className="sp-modal sp-modal-red" style={{ textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+            {/* Blinking red border glow */}
+            <div style={{
+              position: 'absolute', inset: -1, border: '2px solid #ff3b3b',
+              animation: 'target-warn-blink 1.2s ease-in-out infinite',
+              pointerEvents: 'none',
+            }}/>
+
+            {/* Warning icon */}
+            <div style={{
+              width: 56, height: 56, margin: '0 auto 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(255,59,59,0.12)', borderRadius: '50%',
+              animation: 'target-warn-blink 1.2s ease-in-out infinite',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.9 }}>
+                <path d="M12 2L1 21h22L12 2z" fill="rgba(255,59,59,0.25)" stroke="#ff3b3b" strokeWidth="1.5"/>
+                <line x1="12" y1="9" x2="12" y2="14" stroke="#ff3b3b" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="17" r="1" fill="#ff3b3b"/>
+              </svg>
             </div>
-            <div style={{ fontFamily: B_SERIF, fontSize: 16, color: B_DIM, marginBottom: 24, lineHeight: 1.5 }}>
-              Would you like to launch an escalation?
+
+            <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.3em', color: '#ff3b3b', marginBottom: 8, textTransform: 'uppercase' }}>
+              ◤ ALERT · TARGET BREACH
             </div>
+            <div style={{ fontFamily: B_SERIF, fontSize: 26, fontWeight: 700, color: '#ff3b3b', marginBottom: 6, fontStyle: 'italic' }}>
+              Target not met.
+            </div>
+            <div style={{ fontFamily: B_SERIF, fontSize: 15, color: B_DIM, marginBottom: 8, lineHeight: 1.5 }}>
+              Your planet has failed to reach its resource target this chapter.
+            </div>
+            <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.2em', color: B_FAINT, marginBottom: 24 }}>
+              SEIZE WHAT YOU NEED · LAUNCH AN ESCALATION
+            </div>
+
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => {
@@ -1077,21 +1181,22 @@ export default function PlayPage() {
                   flex: 1, padding: '14px 0',
                   background: '#ff3b3b', border: 'none', color: '#fff',
                   fontFamily: B_SERIF, fontSize: 15, fontWeight: 600,
-                  cursor: 'pointer', letterSpacing: '-0.01em', borderRadius: 4,
+                  cursor: 'pointer', letterSpacing: '-0.01em',
+                  boxShadow: '0 0 20px rgba(255,59,59,0.4)',
                 }}
               >
-                Yes, escalate
+                ◤ ESCALATE
               </button>
               <button
                 onClick={() => setShowTargetWarning(false)}
                 style={{
                   flex: 1, padding: '14px 0',
-                  background: 'transparent', border: `1px solid ${B_LINE}`, color: B_INK,
+                  background: 'transparent', border: '1px solid rgba(255,59,59,0.3)', color: B_FAINT,
                   fontFamily: B_SERIF, fontSize: 15, fontWeight: 600,
-                  cursor: 'pointer', letterSpacing: '-0.01em', borderRadius: 4,
+                  cursor: 'pointer', letterSpacing: '-0.01em',
                 }}
               >
-                No, stand down
+                STAND DOWN
               </button>
             </div>
           </div>
@@ -1137,7 +1242,7 @@ export default function PlayPage() {
                   ))}
                 </select>
                 <div style={{ fontFamily: B_MONO, fontSize: 10, letterSpacing: '0.15em', color: B_FAINT, marginTop: 6 }}>
-                  ALL of the target's {RES_LABELS[scandalResource]} will be at stake
+                  ALL of the target&apos;s {RES_LABELS[scandalResource]} will be at stake
                 </div>
               </div>
 

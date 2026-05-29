@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createServer } from "http";
 import next from "next";
 import { Server as SocketServer } from "socket.io";

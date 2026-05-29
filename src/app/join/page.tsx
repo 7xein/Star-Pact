@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import PlanetOrb from '@/components/PlanetOrb'
+import StarField from '@/components/StarField'
 
 interface Country {
   id: string
@@ -17,7 +18,8 @@ interface Session {
   countries: Country[]
 }
 
-const B_BG    = '#0b0a14'
+const B_BG    = '#000'                              // rule 1 — pure black
+const B_GLOW  = '#5b9eff33'                         // rule 3 — fixed blue top-glow
 const B_INK   = '#f4efe5'
 const B_FAINT = 'rgba(244,239,229,0.55)'
 const B_LINE  = 'rgba(244,239,229,0.14)'
@@ -117,11 +119,15 @@ export default function JoinPage() {
       color: B_INK,
       fontFamily: B_SANS,
       position: 'relative',
+      overflow: 'hidden',
     }}>
-      {/* Nebula backdrop */}
+      {/* (rule 2) Stars — first child of mobile root */}
+      <StarField density={1.0} />
+
+      {/* (rule 3) Fixed blue top-glow */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-        background: 'radial-gradient(ellipse at 80% 0%, #5b3a8a33 0%, transparent 50%), radial-gradient(ellipse at 0% 100%, #c9885633 0%, transparent 50%)',
+        background: `radial-gradient(ellipse at 50% 0%, ${B_GLOW}, transparent 55%)`,
       }}/>
 
       {/* Error notification */}
